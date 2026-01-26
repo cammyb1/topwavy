@@ -1,17 +1,15 @@
-import { type Entity, Time, World, type System } from "@jael-ecs/core";
+import { type Entity, Time, World, type System, Query } from "@jael-ecs/core";
 import {
   AmbientLight,
   BoxGeometry,
-  CameraHelper,
   DirectionalLight,
-  DirectionalLightHelper,
   Mesh,
   MeshLambertMaterial,
   Plane,
   PlaneGeometry,
-  // PlaneHelper,
   Raycaster,
   ShadowMaterial,
+  SphereGeometry,
   Vector3,
 } from "three";
 import type { GLState } from "./mount3";
@@ -26,7 +24,13 @@ export function mountExperience(state: GLState) {
 
   // Re-use Geometries
   const boxGeometry = new BoxGeometry(1, 1, 1);
-  const whiteBasicMaterial = new MeshLambertMaterial({ color: "white" });
+  const sphereGeometry = new SphereGeometry(1, 32, 32);
+  const basicMaterial = new MeshLambertMaterial({ color: "white" });
+  const enemyMaterial = basicMaterial.clone();
+  const bulletMaterial = basicMaterial.clone();
+
+  enemyMaterial.color.set("green");
+  bulletMaterial.color.set("yellow");
 
   // Ground shadow;
   const planeGeo = new PlaneGeometry(10, 10, 10);
@@ -63,39 +67,68 @@ export function mountExperience(state: GLState) {
   state.scene.add(ambient);
   state.scene.add(directional);
 
-  // state.scene.add(new PlaneHelper(plane, 10));
-  // state.scene.add(new DirectionalLightHelper(directional));
-  // state.scene.add(new CameraHelper(directional.shadow.camera));
+  // Queries
+  const queries: { [k: string]: Query } = {
+    renderables: world.include("transform"),
+    movable: world.include("transform", "velocity"),
+    colliders: world.include("transform", "bbox"),
+    enemies: world.include("isEnemy"),
+    lifetime: world.include("lifetime"),
+    hasHealth: world.include("health"),
+    player: world.include("isPlayer"),
+  };
+
+  // PlayerEntity
+  const player: Entity = world.create();
+  const playerMesh = new Mesh(boxGeometry, basicMaterial);
+  player.add("transform", playerMesh);
+  player.add("velocity", new Vector3());
+  player.add("isPlayer", true);
+
+  playerMesh.castShadow = true;
 
   // Bullet Factory
   function createBullet(pos: Vector3): Entity {
     const bullet = world.create();
-    const mat = whiteBasicMaterial.clone();
-    mat.color.set("yellow");
-    bullet.add("transform", new Mesh(boxGeometry, mat));
+    const mesh = new Mesh(sphereGeometry, bulletMaterial);
+
+    // Pos
+    mesh.castShadow = true;
+    mesh.position.copy(pos);
+    mesh.scale.multiplyScalar(0.15);
+
+    // Components
+    bullet.add("transform", mesh);
     bullet.add("isBullet", true);
     bullet.add("lifetime", { current: 1, decreaseSpeed: 0.5 });
     bullet.add("velocity", new Vector3());
-    bullet.get("transform").castShadow = true;
-    bullet.get("transform").position.copy(pos);
-    bullet.get("transform").scale.multiplyScalar(0.25);
 
     return bullet;
   }
 
-  // PlayerEntity
-  const player: Entity = world.create();
-  player.add("transform", new Mesh(boxGeometry, whiteBasicMaterial));
-  player.add("velocity", new Vector3());
-  player.add("isPlayer", true);
-  player.get("transform").castShadow = true;
+  // Enemy Factory
+  function createEnemy(pos: Vector3): Entity {
+    const enemy = world.create();
+    const mesh = new Mesh(boxGeometry, enemyMaterial);
+
+    mesh.castShadow = true;
+    mesh.position.copy(pos);
+    mesh.scale.multiplyScalar(1.5);
+
+    enemy.add("transform", mesh);
+    enemy.add("isEnemy", true);
+    enemy.add("target", player);
+    enemy.add("health", { current: 100 });
+    enemy.add("velocity", new Vector3());
+
+    return enemy;
+  }
 
   function PlayerController(): System {
-    const player = world.include("isPlayer");
     const hit = new Vector3();
     const direction = new Vector3();
     const speed = 5;
-    const bulletSpeed = 10;
+    const bulletSpeed = 15;
     let multiplier = 1;
 
     Input.register("forward", ["KeyW", "ArrowUp"]);
@@ -105,7 +138,7 @@ export function mountExperience(state: GLState) {
     Input.register("run", ["ShiftLeft"]);
 
     Input.pointer.on("down", () => {
-      const self: Entity = player.entities.first();
+      const self: Entity = queries.player.entities.first();
       if (!self) return;
 
       const transform = self.get<Mesh>("transform");
@@ -115,10 +148,18 @@ export function mountExperience(state: GLState) {
       bullet.get("velocity").copy(dir.multiplyScalar(bulletSpeed * Time.delta));
     });
 
+    Input.on("down", (event) => {
+      if (event.code === "Space" && !event.repeated) {
+        const self: Entity = queries.player.entities.first();
+        if (!self) return;
+        createEnemy(new Vector3(Math.random() * 10, 0.5, Math.random() * 10));
+      }
+    });
+
     return {
-      priority: 2,
+      priority: 1,
       update() {
-        const self: Entity = player.entities.first();
+        const self: Entity = queries.player.entities.first();
         if (self) {
           const transform = self.get<Mesh>("transform");
           const velocity = self.get<Vector3>("velocity");
@@ -159,13 +200,63 @@ export function mountExperience(state: GLState) {
     };
   }
 
-  function MovementSystem(): System {
-    const movable = world.include("transform", "velocity");
-
+  function EnemyAI(): System {
+    const targetPos = new Vector3();
+    const speed = 1;
     return {
-      priority: 1,
+      priority: 2,
       update() {
-        movable.entities.forEach((entity: Entity) => {
+        queries.enemies.entities.forEach((enemy: Entity) => {
+          const mesh = enemy.get("transform");
+          const velocity = enemy.get("velocity");
+          const targetMesh = enemy.get("target").get("transform");
+
+          if (targetMesh) {
+            mesh.lookAt(targetMesh.position);
+            targetPos.copy(targetMesh.position).sub(mesh.position);
+
+            velocity.copy(targetPos.multiplyScalar(speed * Time.delta));
+          }
+        });
+      },
+    };
+  }
+
+  function GameEngine(): System {
+    return {
+      priority: 0,
+      init() {
+        // Rendering
+        queries.renderables.entities.forEach((entity: Entity) => {
+          state.scene.add(entity.get("transform"));
+        });
+        queries.renderables.on("added", (entity: Entity) => {
+          state.scene.add(entity.get("transform"));
+        });
+        queries.renderables.on("removed", (entity: Entity) => {
+          state.scene.remove(entity.get("transform"));
+        });
+      },
+      update() {
+        // Lifetime entities
+        queries.lifetime.entities.forEach((entity: Entity) => {
+          const lifetime = entity.get("lifetime");
+          lifetime.current -= lifetime.decreaseSpeed * Time.delta;
+          if (lifetime.current < 0) {
+            world.destroy(entity);
+          }
+        });
+
+        // Health
+        queries.hasHealth.entities.forEach((entity: Entity) => {
+          const health = entity.get("health");
+          if (health.current < 0) {
+            world.destroy(entity);
+          }
+        });
+
+        // Movement
+        queries.movable.entities.forEach((entity: Entity) => {
           const transform = entity.get("transform");
           const velocity = entity.get("velocity");
           transform.position.add(velocity);
@@ -174,46 +265,9 @@ export function mountExperience(state: GLState) {
     };
   }
 
-  function LifeTimeSystem(): System {
-    return {
-      priority: 3,
-      update() {
-        const { entities } = world.include("lifetime");
-        entities.forEach((entity: Entity) => {
-          const lifetime = entity.get("lifetime");
-          lifetime.current -= lifetime.decreaseSpeed * Time.delta;
-          if (lifetime.current < 0) {
-            world.destroy(entity);
-          }
-        });
-      },
-    };
-  }
-
-  function RenderSystem(): System {
-    const renderables = world.include("transform");
-
-    return {
-      priority: 0,
-      init() {
-        renderables.entities.forEach((entity: Entity) => {
-          state.scene.add(entity.get("transform"));
-        });
-        renderables.on("added", (entity: Entity) => {
-          state.scene.add(entity.get("transform"));
-        });
-        renderables.on("removed", (entity: Entity) => {
-          state.scene.remove(entity.get("transform"));
-        });
-      },
-      update() {},
-    };
-  }
-
-  world.addSystem(RenderSystem());
+  world.addSystem(GameEngine());
   world.addSystem(PlayerController());
-  world.addSystem(MovementSystem());
-  world.addSystem(LifeTimeSystem());
+  world.addSystem(EnemyAI());
 
   Time.on("update", () => {
     world.update();

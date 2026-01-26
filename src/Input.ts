@@ -18,6 +18,11 @@ export interface PointerEvents {
   up: PointerEvents;
 }
 
+export interface InputEvents {
+  down: { code: string; repeated: boolean };
+  up: { code: string; repeated: boolean };
+}
+
 class Pointer extends EventRegistry<PointerEvents> {
   position: Vector2;
   constructor() {
@@ -38,20 +43,19 @@ class Pointer extends EventRegistry<PointerEvents> {
   }
 }
 
-class Input {
+class Input extends EventRegistry<InputEvents> {
   keys: Map<string, InputConfig>;
   pointer: Pointer;
 
   constructor() {
+    super();
     this.keys = new Map();
     this.pointer = new Pointer();
 
     window.addEventListener("keydown", (e) =>
-      this.updateKeys(e, KeyDirection.DOWN),
+      this.checkKeys(e, KeyDirection.DOWN),
     );
-    window.addEventListener("keyup", (e) =>
-      this.updateKeys(e, KeyDirection.UP),
-    );
+    window.addEventListener("keyup", (e) => this.checkKeys(e, KeyDirection.UP));
     window.addEventListener("visibilitychanged", () => {
       if (document.hidden) {
         this._clearSets();
@@ -93,12 +97,18 @@ class Input {
       : keys.some((k) => config.values[k]);
   }
 
-  updateKeys(keyEvent: KeyboardEvent, direction: Direction) {
-    this.keys.forEach((keySet: InputConfig) => {
-      const key = keyEvent.code;
+  checkKeys(keyEvent: KeyboardEvent, direction: Direction) {
+    if (direction === KeyDirection.UP) {
+      this.emit("up", { code: keyEvent.code, repeated: keyEvent.repeat });
+    } else if (direction === KeyDirection.DOWN) {
+      this.emit("down", { code: keyEvent.code, repeated: keyEvent.repeat });
+    }
 
-      if (keySet.values[key] !== undefined) {
-        keySet.values[key] = direction === KeyDirection.DOWN;
+    this.keys.forEach((keyConfig: InputConfig) => {
+      const keyCode = keyEvent.code;
+
+      if (keyConfig.values[keyCode] !== undefined) {
+        keyConfig.values[keyCode] = direction === KeyDirection.DOWN;
       }
     });
   }
