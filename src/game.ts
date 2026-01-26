@@ -14,9 +14,13 @@ import {
 } from "three";
 import type { GLState } from "./mount3";
 import { Input } from "./Input";
+import * as Rapier from "@dimforge/rapier3d";
 
 export function mountExperience(state: GLState) {
+  const gravity = new Vector3(0, -9.81, 0);
+
   const world = new World();
+  const physicsWorld = new Rapier.World(gravity);
 
   // Util classes
   const raycaster = new Raycaster();
@@ -35,6 +39,14 @@ export function mountExperience(state: GLState) {
   // Ground shadow;
   const planeGeo = new PlaneGeometry(10, 10, 10);
   const shadowMaterial = new ShadowMaterial();
+
+  // GroundCollider
+  const groundColliderDesc = Rapier.ColliderDesc.cuboid(
+    100,
+    0.1,
+    100,
+  ).setTranslation(0, -1, 0);
+  physicsWorld.createCollider(groundColliderDesc);
 
   const ground = new Mesh(planeGeo, shadowMaterial);
   ground.scale.addScalar(10);
@@ -70,7 +82,7 @@ export function mountExperience(state: GLState) {
   // Queries
   const queries: { [k: string]: Query } = {
     renderables: world.include("transform"),
-    movable: world.include("transform", "velocity"),
+    movable: world.include("transform", "velocity", "rigidbody"),
     colliders: world.include("transform", "bbox"),
     enemies: world.include("isEnemy"),
     lifetime: world.include("lifetime"),
@@ -78,12 +90,35 @@ export function mountExperience(state: GLState) {
     player: world.include("isPlayer"),
   };
 
+  // Create dynamic rigidBodys
+  function createRigidBody(): Rapier.RigidBody {
+    const rigidBodyDesc = Rapier.RigidBodyDesc.dynamic();
+    return physicsWorld.createRigidBody(rigidBodyDesc);
+  }
+
+  function boxCollider(parent: Rapier.RigidBody): Rapier.Collider {
+    const collider = Rapier.ColliderDesc.cuboid(1, 1, 1).setDensity(1);
+    return physicsWorld.createCollider(collider, parent);
+  }
+
+  function ballCollider(parent: Rapier.RigidBody): Rapier.Collider {
+    const collider = Rapier.ColliderDesc.ball(1.0).setDensity(1);
+    return physicsWorld.createCollider(collider, parent);
+  }
+
   // PlayerEntity
   const player: Entity = world.create();
   const playerMesh = new Mesh(boxGeometry, basicMaterial);
+  const playerRb = createRigidBody();
   player.add("transform", playerMesh);
   player.add("velocity", new Vector3());
+  player.add("rigidbody", playerRb);
+  player.add("collider", boxCollider(playerRb));
   player.add("isPlayer", true);
+
+  player
+    .get<Rapier.RigidBody>("rigidbody")
+    .setTranslation({ x: 0, y: 2, z: 0 }, true);
 
   playerMesh.castShadow = true;
 
@@ -94,14 +129,26 @@ export function mountExperience(state: GLState) {
 
     // Pos
     mesh.castShadow = true;
-    mesh.position.copy(pos);
     mesh.scale.multiplyScalar(0.15);
+    mesh.position.copy(pos);
+
+    const kinematicDesc =
+      Rapier.RigidBodyDesc.kinematicVelocityBased().setGravityScale(0);
+    const kinematicRigidBody = physicsWorld.createRigidBody(kinematicDesc);
+    const collider = ballCollider(kinematicRigidBody);
 
     // Components
     bullet.add("transform", mesh);
     bullet.add("isBullet", true);
-    bullet.add("lifetime", { current: 1, decreaseSpeed: 0.5 });
+    bullet.add("lifetime", { current: 1, decreaseSpeed: 1 });
     bullet.add("velocity", new Vector3());
+    bullet.add("rigidbody", kinematicRigidBody);
+    bullet.add("collider", collider);
+
+    kinematicRigidBody.setTranslation(pos, true);
+    collider.setDensity(0);
+    collider.setRadius(mesh.scale.y / 2);
+    collider.setSensor(true);
 
     return bullet;
   }
@@ -120,6 +167,7 @@ export function mountExperience(state: GLState) {
     enemy.add("target", player);
     enemy.add("health", { current: 100 });
     enemy.add("velocity", new Vector3());
+    enemy.add("rigidbody", createRigidBody());
 
     return enemy;
   }
@@ -127,8 +175,8 @@ export function mountExperience(state: GLState) {
   function PlayerController(): System {
     const hit = new Vector3();
     const direction = new Vector3();
-    const speed = 5;
-    const bulletSpeed = 15;
+    const speed = 15;
+    const bulletSpeed = 25;
     let multiplier = 1;
 
     Input.register("forward", ["KeyW", "ArrowUp"]);
@@ -143,8 +191,7 @@ export function mountExperience(state: GLState) {
 
       const transform = self.get<Mesh>("transform");
       const dir = transform.getWorldDirection(new Vector3());
-      const bullet = createBullet(transform.position);
-      bullet.get("transform").lookAt(dir);
+      const bullet = createBullet(transform.position.clone().add(dir));
       bullet.get("velocity").copy(dir.multiplyScalar(bulletSpeed * Time.delta));
     });
 
@@ -158,6 +205,11 @@ export function mountExperience(state: GLState) {
 
     return {
       priority: 1,
+      init() {
+        const self: Entity = queries.player.entities.first();
+        const collider = self.get<Rapier.Collider>("collider");
+        collider.setFriction(0.5);
+      },
       update() {
         const self: Entity = queries.player.entities.first();
         if (self) {
@@ -179,7 +231,7 @@ export function mountExperience(state: GLState) {
           }
 
           if (Input.isPressed("run")) {
-            multiplier = 2;
+            multiplier = 1.25;
           } else {
             multiplier = 1;
           }
@@ -215,7 +267,7 @@ export function mountExperience(state: GLState) {
             mesh.lookAt(targetMesh.position);
             targetPos.copy(targetMesh.position).sub(mesh.position);
 
-            velocity.copy(targetPos.multiplyScalar(speed * Time.delta));
+            velocity.copy(targetPos.multiplyScalar(speed));
           }
         });
       },
@@ -243,6 +295,14 @@ export function mountExperience(state: GLState) {
           const lifetime = entity.get("lifetime");
           lifetime.current -= lifetime.decreaseSpeed * Time.delta;
           if (lifetime.current < 0) {
+            const rb = entity.get<Rapier.RigidBody>("rigidbody");
+            const col = entity.get<Rapier.Collider>("collider");
+            if (rb) {
+              physicsWorld.removeRigidBody(rb);
+            }
+            if (col) {
+              physicsWorld.removeCollider(col, true);
+            }
             world.destroy(entity);
           }
         });
@@ -258,8 +318,12 @@ export function mountExperience(state: GLState) {
         // Movement
         queries.movable.entities.forEach((entity: Entity) => {
           const transform = entity.get("transform");
+          const rb = entity.get<Rapier.RigidBody>("rigidbody");
           const velocity = entity.get("velocity");
-          transform.position.add(velocity);
+          const linearVelocity = new Vector3().copy(rb.linvel());
+          rb.setLinvel(linearVelocity.add(velocity), true);
+
+          transform.position.copy(rb.translation());
         });
       },
     };
@@ -270,6 +334,7 @@ export function mountExperience(state: GLState) {
   world.addSystem(EnemyAI());
 
   Time.on("update", () => {
+    physicsWorld.step();
     world.update();
   });
 }
