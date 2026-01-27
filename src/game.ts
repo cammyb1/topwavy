@@ -2,7 +2,11 @@ import { type Entity, Time, World, type System, Query } from "@jael-ecs/core";
 import {
   AmbientLight,
   BoxGeometry,
+  BufferAttribute,
+  BufferGeometry,
   DirectionalLight,
+  LineBasicMaterial,
+  LineSegments,
   Mesh,
   MeshLambertMaterial,
   Plane,
@@ -79,6 +83,16 @@ export function mountExperience(state: GLState) {
   state.scene.add(ambient);
   state.scene.add(directional);
 
+  // Physics debug
+  const debugLines = new LineSegments(
+    new BufferGeometry(),
+    new LineBasicMaterial({ vertexColors: true }),
+  );
+  state.scene.add(debugLines);
+
+  // Collision Queue
+  let collisionQueue = new Rapier.EventQueue(true);
+
   // Queries
   const queries: { [k: string]: Query } = {
     renderables: world.include("transform"),
@@ -96,8 +110,11 @@ export function mountExperience(state: GLState) {
     return physicsWorld.createRigidBody(rigidBodyDesc);
   }
 
-  function boxCollider(parent: Rapier.RigidBody): Rapier.Collider {
-    const collider = Rapier.ColliderDesc.cuboid(1, 1, 1).setDensity(1);
+  function boxCollider(
+    parent: Rapier.RigidBody,
+    size: Vector3,
+  ): Rapier.Collider {
+    const collider = Rapier.ColliderDesc.cuboid(size.x, size.y, size.z);
     return physicsWorld.createCollider(collider, parent);
   }
 
@@ -113,7 +130,7 @@ export function mountExperience(state: GLState) {
   player.add("transform", playerMesh);
   player.add("velocity", new Vector3());
   player.add("rigidbody", playerRb);
-  player.add("collider", boxCollider(playerRb));
+  player.add("collider", boxCollider(playerRb, new Vector3(0.5, 0.5, 0.5)));
   player.add("isPlayer", true);
 
   player
@@ -162,12 +179,19 @@ export function mountExperience(state: GLState) {
     mesh.position.copy(pos);
     mesh.scale.multiplyScalar(1.5);
 
+    const rb = createRigidBody();
+    const collider = boxCollider(rb, new Vector3(1, 1, 1));
+
+    collider.setFriction(0.5);
+    rb.setTranslation(pos, true);
+
     enemy.add("transform", mesh);
     enemy.add("isEnemy", true);
     enemy.add("target", player);
     enemy.add("health", { current: 100 });
     enemy.add("velocity", new Vector3());
-    enemy.add("rigidbody", createRigidBody());
+    enemy.add("rigidbody", rb);
+    enemy.add("collider", collider);
 
     return enemy;
   }
@@ -176,7 +200,7 @@ export function mountExperience(state: GLState) {
     const hit = new Vector3();
     const direction = new Vector3();
     const speed = 15;
-    const bulletSpeed = 25;
+    const bulletSpeed = 30;
     let multiplier = 1;
 
     Input.register("forward", ["KeyW", "ArrowUp"]);
@@ -208,6 +232,8 @@ export function mountExperience(state: GLState) {
       init() {
         const self: Entity = queries.player.entities.first();
         const collider = self.get<Rapier.Collider>("collider");
+        const rb = self.get<Rapier.RigidBody>("rigidbody");
+
         collider.setFriction(0.5);
       },
       update() {
@@ -253,8 +279,8 @@ export function mountExperience(state: GLState) {
   }
 
   function EnemyAI(): System {
-    const targetPos = new Vector3();
-    const speed = 1;
+    const targetDir = new Vector3();
+    const speed = 13;
     return {
       priority: 2,
       update() {
@@ -264,10 +290,13 @@ export function mountExperience(state: GLState) {
           const targetMesh = enemy.get("target").get("transform");
 
           if (targetMesh) {
-            mesh.lookAt(targetMesh.position);
-            targetPos.copy(targetMesh.position).sub(mesh.position);
-
-            velocity.copy(targetPos.multiplyScalar(speed));
+            if (targetMesh.position.distanceTo(mesh.position) < 20) {
+              mesh.lookAt(targetMesh.position);
+              mesh.getWorldDirection(targetDir);
+              velocity.copy(targetDir.multiplyScalar(speed * Time.delta));
+            } else {
+              velocity.set(0, 0, 0);
+            }
           }
         });
       },
@@ -290,6 +319,24 @@ export function mountExperience(state: GLState) {
         });
       },
       update() {
+        // Physics debug update
+        const buffers = physicsWorld.debugRender();
+        const geo = new BufferGeometry();
+        geo.setAttribute("position", new BufferAttribute(buffers.vertices, 3));
+        geo.setAttribute("color", new BufferAttribute(buffers.colors, 4));
+        debugLines.geometry.dispose();
+        debugLines.geometry = geo;
+
+        collisionQueue.drainCollisionEvents((handle1, handl2, started) => {
+          console.log(handle1, handl2, started);
+        });
+
+        collisionQueue.drainContactForceEvents((event) => {
+          let handle1 = event.collider1(); // Handle of the first collider involved in the event.
+          let handle2 = event.collider2(); // Handle of the second collider involved in the event.
+          console.log(handle1, handle2);
+        });
+
         // Lifetime entities
         queries.lifetime.entities.forEach((entity: Entity) => {
           const lifetime = entity.get("lifetime");
@@ -334,7 +381,7 @@ export function mountExperience(state: GLState) {
   world.addSystem(EnemyAI());
 
   Time.on("update", () => {
-    physicsWorld.step();
+    physicsWorld.step(collisionQueue);
     world.update();
   });
 }
