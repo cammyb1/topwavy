@@ -24,7 +24,10 @@ export function mountExperience(state: GLState) {
   const gravity = new Vector3(0, -9.81, 0);
 
   const world = new World();
-  const physicsWorld = new Rapier.World(gravity);
+  const integrationParameters = new Rapier.IntegrationParameters();
+  integrationParameters.dt = 1 / 60;
+  integrationParameters.maxCcdSubsteps = 10;
+  const physicsWorld = new Rapier.World(gravity, integrationParameters.raw);
 
   // Util classes
   const raycaster = new Raycaster();
@@ -47,7 +50,7 @@ export function mountExperience(state: GLState) {
   // GroundCollider
   const groundColliderDesc = Rapier.ColliderDesc.cuboid(
     100,
-    0.1,
+    0.5,
     100,
   ).setTranslation(0, -1, 0);
   physicsWorld.createCollider(groundColliderDesc);
@@ -88,7 +91,7 @@ export function mountExperience(state: GLState) {
     new BufferGeometry(),
     new LineBasicMaterial({ vertexColors: true }),
   );
-  state.scene.add(debugLines);
+  // state.scene.add(debugLines);
 
   // Collision Queue
   let collisionQueue = new Rapier.EventQueue(true);
@@ -99,6 +102,7 @@ export function mountExperience(state: GLState) {
     movable: world.include("transform", "velocity", "rigidbody"),
     colliders: world.include("transform", "bbox"),
     enemies: world.include("isEnemy"),
+    bullets: world.include("isBullet"),
     lifetime: world.include("lifetime"),
     hasHealth: world.include("health"),
     player: world.include("isPlayer"),
@@ -114,24 +118,35 @@ export function mountExperience(state: GLState) {
     parent: Rapier.RigidBody,
     size: Vector3,
   ): Rapier.Collider {
-    const collider = Rapier.ColliderDesc.cuboid(size.x, size.y, size.z);
+    const collider = Rapier.ColliderDesc.cuboid(
+      size.x,
+      size.y,
+      size.z,
+    ).setActiveCollisionTypes(Rapier.ActiveCollisionTypes.ALL);
     return physicsWorld.createCollider(collider, parent);
   }
 
   function ballCollider(parent: Rapier.RigidBody): Rapier.Collider {
-    const collider = Rapier.ColliderDesc.ball(1.0).setDensity(1);
+    const collider = Rapier.ColliderDesc.ball(1.0)
+      .setDensity(1)
+      .setActiveCollisionTypes(Rapier.ActiveCollisionTypes.ALL);
     return physicsWorld.createCollider(collider, parent);
   }
 
   // PlayerEntity
-  const player: Entity = world.create();
+  const playerID = world.create();
+  const player: Entity = world.getEntity(playerID) as Entity;
   const playerMesh = new Mesh(boxGeometry, basicMaterial);
   const playerRb = createRigidBody();
+  const playercollider = boxCollider(playerRb, new Vector3(0.5, 0.5, 0.5));
   player.add("transform", playerMesh);
   player.add("velocity", new Vector3());
   player.add("rigidbody", playerRb);
-  player.add("collider", boxCollider(playerRb, new Vector3(0.5, 0.5, 0.5)));
+  player.add("health", { current: 100 });
+  player.add("collider", playercollider);
   player.add("isPlayer", true);
+
+  playercollider.setActiveEvents(Rapier.ActiveEvents.COLLISION_EVENTS);
 
   player
     .get<Rapier.RigidBody>("rigidbody")
@@ -139,9 +154,22 @@ export function mountExperience(state: GLState) {
 
   playerMesh.castShadow = true;
 
+  function destroyEntityWithCollider(entity: Entity) {
+    const rb = entity.get<Rapier.RigidBody>("rigidbody");
+    const col = entity.get<Rapier.Collider>("collider");
+    if (rb) {
+      physicsWorld.removeRigidBody(rb);
+    }
+    if (col) {
+      physicsWorld.removeCollider(col, true);
+    }
+    world.destroy(entity.id);
+  }
+
   // Bullet Factory
   function createBullet(pos: Vector3): Entity {
-    const bullet = world.create();
+    const bulletId = world.create();
+    const bullet: Entity = world.getEntity(bulletId) as Entity;
     const mesh = new Mesh(sphereGeometry, bulletMaterial);
 
     // Pos
@@ -153,11 +181,12 @@ export function mountExperience(state: GLState) {
       Rapier.RigidBodyDesc.kinematicVelocityBased().setGravityScale(0);
     const kinematicRigidBody = physicsWorld.createRigidBody(kinematicDesc);
     const collider = ballCollider(kinematicRigidBody);
+    collider.setActiveEvents(Rapier.ActiveEvents.COLLISION_EVENTS);
 
     // Components
     bullet.add("transform", mesh);
     bullet.add("isBullet", true);
-    bullet.add("lifetime", { current: 1, decreaseSpeed: 1 });
+    bullet.add("lifetime", { current: 1, decreaseSpeed: 2.5 });
     bullet.add("velocity", new Vector3());
     bullet.add("rigidbody", kinematicRigidBody);
     bullet.add("collider", collider);
@@ -172,7 +201,8 @@ export function mountExperience(state: GLState) {
 
   // Enemy Factory
   function createEnemy(pos: Vector3): Entity {
-    const enemy = world.create();
+    const enemyId = world.create();
+    const enemy: Entity = world.getEntity(enemyId) as Entity;
     const mesh = new Mesh(boxGeometry, enemyMaterial);
 
     mesh.castShadow = true;
@@ -181,9 +211,10 @@ export function mountExperience(state: GLState) {
 
     const rb = createRigidBody();
     const collider = boxCollider(rb, new Vector3(1, 1, 1));
-
+    collider.setActiveEvents(Rapier.ActiveEvents.COLLISION_EVENTS);
     collider.setFriction(0.5);
     rb.setTranslation(pos, true);
+    rb.enableCcd(true);
 
     enemy.add("transform", mesh);
     enemy.add("isEnemy", true);
@@ -200,7 +231,10 @@ export function mountExperience(state: GLState) {
     const hit = new Vector3();
     const direction = new Vector3();
     const speed = 15;
-    const bulletSpeed = 30;
+    const bulletSpeed = 50;
+    let shooting = false;
+    let shootingStarted = 0;
+    const shootingRate = 0.1;
     let multiplier = 1;
 
     Input.register("forward", ["KeyW", "ArrowUp"]);
@@ -210,18 +244,17 @@ export function mountExperience(state: GLState) {
     Input.register("run", ["ShiftLeft"]);
 
     Input.pointer.on("down", () => {
-      const self: Entity = queries.player.entities.first();
-      if (!self) return;
+      shootingStarted = Time.elapsed;
+      shooting = true;
+    });
 
-      const transform = self.get<Mesh>("transform");
-      const dir = transform.getWorldDirection(new Vector3());
-      const bullet = createBullet(transform.position.clone().add(dir));
-      bullet.get("velocity").copy(dir.multiplyScalar(bulletSpeed * Time.delta));
+    Input.pointer.on("up", () => {
+      shooting = false;
     });
 
     Input.on("down", (event) => {
       if (event.code === "Space" && !event.repeated) {
-        const self: Entity = queries.player.entities.first();
+        const self: Entity = queries.player.entities[0];
         if (!self) return;
         createEnemy(new Vector3(Math.random() * 10, 0.5, Math.random() * 10));
       }
@@ -230,14 +263,12 @@ export function mountExperience(state: GLState) {
     return {
       priority: 1,
       init() {
-        const self: Entity = queries.player.entities.first();
+        const self: Entity = queries.player.entities[0];
         const collider = self.get<Rapier.Collider>("collider");
-        const rb = self.get<Rapier.RigidBody>("rigidbody");
-
         collider.setFriction(0.5);
       },
       update() {
-        const self: Entity = queries.player.entities.first();
+        const self: Entity = queries.player.entities[0];
         if (self) {
           const transform = self.get<Mesh>("transform");
           const velocity = self.get<Vector3>("velocity");
@@ -254,6 +285,22 @@ export function mountExperience(state: GLState) {
           }
           if (Input.isPressed("right")) {
             direction.x = 1;
+          }
+
+          if (
+            shooting &&
+            Math.abs(shootingStarted - Time.elapsed) > shootingRate
+          ) {
+            shootingStarted = Time.elapsed;
+            const self: Entity = queries.player.entities[0];
+            if (!self) return;
+
+            const transform = self.get<Mesh>("transform");
+            const dir = transform.getWorldDirection(new Vector3());
+            const bullet = createBullet(transform.position.clone().add(dir));
+            bullet
+              .get("velocity")
+              .copy(dir.multiplyScalar(bulletSpeed * Time.delta));
           }
 
           if (Input.isPressed("run")) {
@@ -311,11 +358,14 @@ export function mountExperience(state: GLState) {
         queries.renderables.entities.forEach((entity: Entity) => {
           state.scene.add(entity.get("transform"));
         });
-        queries.renderables.on("added", (entity: Entity) => {
-          state.scene.add(entity.get("transform"));
+
+        queries.renderables.on("added", (entityId) => {
+          const transform = world.getComponent<Mesh>(entityId, "transform");
+          state.scene.add(transform);
         });
-        queries.renderables.on("removed", (entity: Entity) => {
-          state.scene.remove(entity.get("transform"));
+        queries.renderables.on("removed", (entityId) => {
+          const transform = world.getComponent<Mesh>(entityId, "transform");
+          state.scene.remove(transform);
         });
       },
       update() {
@@ -327,14 +377,35 @@ export function mountExperience(state: GLState) {
         debugLines.geometry.dispose();
         debugLines.geometry = geo;
 
+        // Collision management
         collisionQueue.drainCollisionEvents((handle1, handl2, started) => {
-          console.log(handle1, handl2, started);
+          const isPlayer = handle1 === playercollider.handle;
+          const bullet = queries.bullets.entities.find((e) =>
+            [handle1, handl2].includes(
+              e.get<Rapier.Collider>("collider").handle,
+            ),
+          );
+          console.log(handle1, handl2, true);
+          const enemy = queries.enemies.entities.find((entity) => {
+            const collider = entity.get<Rapier.Collider>("collider");
+            return [handle1, handl2].includes(collider.handle);
+          });
+
+          if (bullet && enemy && started) {
+            const hp = enemy.get("health");
+            hp.current -= 10;
+            destroyEntityWithCollider(bullet);
+          }
+
+          // Player vs Enemy collision
+          if (isPlayer && enemy && started) {
+            const hp = player.get("health");
+            hp.current -= 10;
+          }
         });
 
-        collisionQueue.drainContactForceEvents((event) => {
-          let handle1 = event.collider1(); // Handle of the first collider involved in the event.
-          let handle2 = event.collider2(); // Handle of the second collider involved in the event.
-          console.log(handle1, handle2);
+        collisionQueue.drainContactForceEvents((e) => {
+          console.log(e);
         });
 
         // Lifetime entities
@@ -342,15 +413,7 @@ export function mountExperience(state: GLState) {
           const lifetime = entity.get("lifetime");
           lifetime.current -= lifetime.decreaseSpeed * Time.delta;
           if (lifetime.current < 0) {
-            const rb = entity.get<Rapier.RigidBody>("rigidbody");
-            const col = entity.get<Rapier.Collider>("collider");
-            if (rb) {
-              physicsWorld.removeRigidBody(rb);
-            }
-            if (col) {
-              physicsWorld.removeCollider(col, true);
-            }
-            world.destroy(entity);
+            destroyEntityWithCollider(entity);
           }
         });
 
@@ -358,7 +421,7 @@ export function mountExperience(state: GLState) {
         queries.hasHealth.entities.forEach((entity: Entity) => {
           const health = entity.get("health");
           if (health.current < 0) {
-            world.destroy(entity);
+            destroyEntityWithCollider(entity);
           }
         });
 
