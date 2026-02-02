@@ -1,0 +1,97 @@
+import { type World, type System, type Entity, Time } from "@jael-ecs/core";
+import type { GLState } from "../mount3";
+import { Vector3, type Mesh } from "three";
+import * as RAPIER from "@dimforge/rapier3d";
+import RapierEngine from "../Rapier";
+
+export default function GameEngine(world: World): System {
+  const renderables = world.include("transform");
+  const lifeTimers = world.include("lifetime");
+  const movables = world.include("transform", "rigidbody", "velocity");
+  const healthEs = world.include("health");
+  const engine = world.include("isEngine").entities[0];
+
+  const enemies = world.include("isEnemy", "collider");
+  const bullets = world.include("isBullet", "collider");
+
+  function destroyEntityWithCollider(entity: Entity) {
+    const rb = entity.get<RAPIER.RigidBody>("rigidbody");
+    const col = entity.get<RAPIER.Collider>("collider");
+    if (rb) {
+      RapierEngine.world.removeRigidBody(rb);
+    }
+    if (col) {
+      RapierEngine.world.removeCollider(col, true);
+    }
+    world.destroy(entity.id);
+  }
+
+  return {
+    priority: 0,
+    init() {
+      const state = engine.get<GLState>("gl");
+
+      // Rendering
+      renderables.entities.forEach((entity: Entity) => {
+        state.scene.add(entity.get("transform"));
+      });
+
+      renderables.on("added", (entityId) => {
+        const transform = world.getComponent<Mesh>(entityId, "transform");
+        state.scene.add(transform);
+      });
+      renderables.on("removed", (entityId) => {
+        const transform = world.getComponent<Mesh>(entityId, "transform");
+        state.scene.remove(transform);
+      });
+    },
+    update() {
+      // Collisions
+
+      RapierEngine.onCollisionDrain((handle1, handle2, started) => {
+        const bullet = bullets.entities.find((e) =>
+          [handle1, handle2].includes(
+            e.get<RAPIER.Collider>("collider").handle,
+          ),
+        );
+        const enemy = enemies.entities.find((e) =>
+          [handle1, handle2].includes(
+            e.get<RAPIER.Collider>("collider").handle,
+          ),
+        );
+
+        if (bullet && enemy && started) {
+          const damage = bullet.get<number>("damage");
+          enemy.get("health").current -= damage;
+        }
+      });
+
+      // Lifetime entities
+      lifeTimers.entities.forEach((entity: Entity) => {
+        const lifetime = entity.get("lifetime");
+        lifetime.current -= lifetime.decreaseSpeed * Time.delta;
+        if (lifetime.current < 0) {
+          destroyEntityWithCollider(entity);
+        }
+      });
+
+      // Health
+      healthEs.entities.forEach((entity: Entity) => {
+        const health = entity.get("health");
+        if (health.current < 0) {
+          destroyEntityWithCollider(entity);
+        }
+      });
+
+      // Movement
+      movables.entities.forEach((entity: Entity) => {
+        const transform = entity.get("transform");
+        const rb = entity.get<RAPIER.RigidBody>("rigidbody");
+        const velocity = entity.get("velocity");
+        const linearVelocity = new Vector3().copy(rb.linvel());
+        transform.position.copy(rb.translation());
+        rb.setLinvel(linearVelocity.add(velocity), true);
+      });
+    },
+  };
+}

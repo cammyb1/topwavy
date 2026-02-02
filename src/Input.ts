@@ -15,7 +15,7 @@ export type Direction = (typeof KeyDirection)[keyof typeof KeyDirection];
 
 export interface PointerEvents {
   down: PointerEvent;
-  up: PointerEvents;
+  up: PointerEvent;
 }
 
 export interface InputEvents {
@@ -117,4 +117,4 @@ class Input extends EventRegistry<InputEvents> {
 // Singleton
 const input = new Input();
 
-export { input as Input };
+export { input as Input, type Input as InputType };
