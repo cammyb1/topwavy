@@ -9,12 +9,12 @@ import {
 import RapierEngine from "../Rapier";
 import { ActiveCollisionTypes, ActiveEvents } from "@dimforge/rapier3d";
 
+const boxGeometry = new BoxGeometry(1, 1, 1);
+const basicMaterial = new MeshLambertMaterial({ color: "white" });
+
 export default function BoxLikeEntity(world: World, size: Vector3Like): Entity {
   const entityID = world.create();
   const entityProxy: Entity = world.getEntity(entityID) as Entity;
-
-  const boxGeometry = new BoxGeometry(1, 1, 1);
-  const basicMaterial = new MeshLambertMaterial({ color: "white" });
 
   const entityMesh = new Mesh(boxGeometry, basicMaterial);
   const entityRb = RapierEngine.world.createRigidBody(

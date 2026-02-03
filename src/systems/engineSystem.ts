@@ -3,6 +3,7 @@ import type { GLState } from "../mount3";
 import { Vector3, type Mesh } from "three";
 import * as RAPIER from "@dimforge/rapier3d";
 import RapierEngine from "../Rapier";
+import { destroyEntityWithCollider } from "../utils";
 
 export default function GameEngine(world: World): System {
   const renderables = world.include("transform");
@@ -13,18 +14,6 @@ export default function GameEngine(world: World): System {
 
   const enemies = world.include("isEnemy", "collider");
   const bullets = world.include("isBullet", "collider");
-
-  function destroyEntityWithCollider(entity: Entity) {
-    const rb = entity.get<RAPIER.RigidBody>("rigidbody");
-    const col = entity.get<RAPIER.Collider>("collider");
-    if (rb) {
-      RapierEngine.world.removeRigidBody(rb);
-    }
-    if (col) {
-      RapierEngine.world.removeCollider(col, true);
-    }
-    world.destroy(entity.id);
-  }
 
   return {
     priority: 0,
@@ -71,7 +60,7 @@ export default function GameEngine(world: World): System {
         const lifetime = entity.get("lifetime");
         lifetime.current -= lifetime.decreaseSpeed * Time.delta;
         if (lifetime.current < 0) {
-          destroyEntityWithCollider(entity);
+          destroyEntityWithCollider(entity, world);
         }
       });
 
@@ -79,7 +68,7 @@ export default function GameEngine(world: World): System {
       healthEs.entities.forEach((entity: Entity) => {
         const health = entity.get("health");
         if (health.current < 0) {
-          destroyEntityWithCollider(entity);
+          destroyEntityWithCollider(entity, world);
         }
       });
 

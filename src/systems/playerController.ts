@@ -1,7 +1,6 @@
 import { Time, type System, type World } from "@jael-ecs/core";
 import { Mesh, Plane, Raycaster, Vector3 } from "three";
 import type { GLState } from "../mount3";
-import Enemy from "../entities/Enemy";
 import Bullet from "../entities/Bullet";
 import { Input } from "../Input";
 import * as RAPIER from "@dimforge/rapier3d";
@@ -42,19 +41,6 @@ export default function PlayerController(world: World): System {
 
   Input.pointer.on("up", () => {
     shooting = false;
-  });
-
-  Input.on("down", (event) => {
-    if (event.code === "Space" && !event.repeated) {
-      if (!player) return;
-      const entEnemy = Enemy(world);
-      entEnemy.add("target", player);
-      const rb = entEnemy.get<RAPIER.RigidBody>("rigidbody");
-      const transform = entEnemy.get<Mesh>("transform");
-      const startPos = { x: Math.random() * 10, y: 0, z: Math.random() * 10 };
-      transform.position.copy(startPos);
-      rb.setTranslation(startPos, true);
-    }
   });
 
   function createBullet(pos: Vector3, dir: Vector3) {

@@ -6,6 +6,7 @@ import GameEngine from "./systems/engineSystem";
 import EnemyAI from "./systems/enemySystem";
 import PlayerController from "./systems/playerController";
 import Player from "./entities/Player";
+import WaveSystem from "./systems/waveSystem";
 
 export function mountExperience(state: GLState) {
   const world = new World();
@@ -19,6 +20,7 @@ export function mountExperience(state: GLState) {
   world.addSystem(GameEngine(world));
   world.addSystem(PlayerController(world));
   world.addSystem(EnemyAI(world));
+  world.addSystem(WaveSystem(world));
 
   Time.on("update", () => {
     RapierEngine.step();

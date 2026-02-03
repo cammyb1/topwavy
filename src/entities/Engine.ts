@@ -11,6 +11,13 @@ import {
 import RapierEngine from "../Rapier";
 import type { Entity } from "@jael-ecs/core";
 
+export interface WaveConfig {
+  current: number;
+  maxWave: number;
+  enemiesPerWave: number;
+  sleepTime: number;
+}
+
 export function Engine(state: GLState, world: World): Entity {
   const engineId = world.create();
   const engineProxy: Entity = world.getEntity(engineId) as Entity;
@@ -58,6 +65,12 @@ export function Engine(state: GLState, world: World): Entity {
 
   engineProxy.add("isEngine", true);
   engineProxy.add("gl", state);
+  engineProxy.add("waveConfig", {
+    current: 1,
+    maxWave: 2,
+    enemiesPerWave: 2,
+    sleepTime: 0.5,
+  } as WaveConfig);
 
   return engineProxy;
 }

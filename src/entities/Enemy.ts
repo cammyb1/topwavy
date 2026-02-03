@@ -1,14 +1,21 @@
 import type { World, Entity } from "@jael-ecs/core";
 import { BoxGeometry, Mesh, MeshLambertMaterial, Vector3 } from "three";
 import BoxLikeEntity from "./BoxLikeEntity";
+import { RigidBody } from "@dimforge/rapier3d";
 
-export default function Enemy(world: World): Entity {
+export default function Enemy(world: World, startingPos?: Vector3): Entity {
   const size = new Vector3(1.5, 1.5, 1.5);
   const enemy = BoxLikeEntity(world, size);
   const mesh = enemy.get<Mesh<BoxGeometry, MeshLambertMaterial>>("transform");
   mesh.scale.copy(size);
   mesh.material = mesh.material.clone();
   mesh.material.color.set("green");
+
+  if (startingPos) {
+    const rb = enemy.get<RigidBody>("rigidbody");
+    rb.setTranslation(startingPos, true);
+    mesh.position.copy(startingPos);
+  }
 
   enemy.add("health", { current: 100 });
   enemy.add("isEnemy", true);
