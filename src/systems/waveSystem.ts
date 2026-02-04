@@ -1,7 +1,7 @@
 import { Time, World, type System } from "@jael-ecs/core";
 import Enemy from "../entities/Enemy";
 import { Vector3 } from "three";
-import type { WaveConfig } from "../entities/Engine";
+import { type WaveConfig } from "../entities/Engine";
 
 export default function WaveSystem(world: World): System {
   const engine = world.include("isEngine").entities[0];
@@ -52,6 +52,7 @@ export default function WaveSystem(world: World): System {
         if (spawnedEnemies >= maxEnemies && enemyPool.length <= 0) {
           spawnedEnemies = 0;
           waveConfig.current += 1;
+          console.log("Current Wave: ", waveConfig.current);
           maxEnemies = waveConfig.enemiesPerWave * waveConfig.current;
         }
       });

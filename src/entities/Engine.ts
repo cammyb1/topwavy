@@ -18,6 +18,15 @@ export interface WaveConfig {
   sleepTime: number;
 }
 
+export type GameState = (typeof GameStates)[keyof typeof GameStates];
+
+export const GameStates = Object.freeze({
+  IDLE: 0,
+  STARTED: 1,
+  PAUSED: 2,
+  FINISHED: 3,
+} as const);
+
 export function Engine(state: GLState, world: World): Entity {
   const engineId = world.create();
   const engineProxy: Entity = world.getEntity(engineId) as Entity;
@@ -65,9 +74,10 @@ export function Engine(state: GLState, world: World): Entity {
 
   engineProxy.add("isEngine", true);
   engineProxy.add("gl", state);
+  engineProxy.add("state", { current: GameStates.IDLE });
   engineProxy.add("waveConfig", {
     current: 1,
-    maxWave: 2,
+    maxWave: 10,
     enemiesPerWave: 2,
     sleepTime: 0.5,
   } as WaveConfig);

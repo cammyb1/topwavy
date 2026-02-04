@@ -3,10 +3,10 @@ import { Mesh, Plane, Raycaster, Vector3 } from "three";
 import type { GLState } from "../mount3";
 import Bullet from "../entities/Bullet";
 import { Input } from "../Input";
-import * as RAPIER from "@dimforge/rapier3d";
+import { isPaused } from "../utils";
 
 export default function PlayerController(world: World): System {
-  const player = world.include("isPlayer").entities[0];
+  const playerQuery = world.include("isPlayer");
   const engine = world.include("isEngine").entities[0];
 
   const caster = new Raycaster();
@@ -30,11 +30,13 @@ export default function PlayerController(world: World): System {
   Input.register("run", ["ShiftLeft"]);
 
   Input.pointer.on("down", () => {
+    if (playerQuery.size() <= 0 || isPaused(engine.get("state").current))
+      return;
     shootingStarted = Time.elapsed;
     shooting = true;
 
     // First Bullet
-    const transform = player.get<Mesh>("transform");
+    const transform = playerQuery.entities[0].get<Mesh>("transform");
     transform.getWorldDirection(worldDir);
     createBullet(transform.position, worldDir);
   });
@@ -53,12 +55,10 @@ export default function PlayerController(world: World): System {
 
   return {
     priority: 1,
-    init() {
-      const collider = player.get<RAPIER.Collider>("collider");
-      collider.setFriction(0.5);
-    },
     update() {
       const state = engine.get<GLState>("gl");
+      const player = playerQuery.entities[0];
+
       if (player && state) {
         const transform = player.get<Mesh>("transform");
         const velocity = player.get<Vector3>("velocity");

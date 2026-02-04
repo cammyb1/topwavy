@@ -1,6 +1,13 @@
 import type { Collider, RigidBody } from "@dimforge/rapier3d";
 import type { Entity, World } from "@jael-ecs/core";
 import RapierEngine from "./Rapier";
+import { GameStates, type GameState } from "./entities/Engine";
+
+export function isPaused(currentState: GameState): boolean {
+  return ([GameStates.IDLE, GameStates.PAUSED] as GameState[]).includes(
+    currentState,
+  );
+}
 
 export function destroyEntityWithCollider(
   entity: Entity,

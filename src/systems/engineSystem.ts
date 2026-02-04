@@ -4,6 +4,7 @@ import { Vector3, type Mesh } from "three";
 import * as RAPIER from "@dimforge/rapier3d";
 import RapierEngine from "../Rapier";
 import { destroyEntityWithCollider } from "../utils";
+import { GameStates } from "../entities/Engine";
 
 export default function GameEngine(world: World): System {
   const renderables = world.include("transform");
@@ -11,9 +12,23 @@ export default function GameEngine(world: World): System {
   const movables = world.include("transform", "rigidbody", "velocity");
   const healthEs = world.include("health");
   const engine = world.include("isEngine").entities[0];
+  const playerQuery = world.include("isPlayer");
 
   const enemies = world.include("isEnemy", "collider");
   const bullets = world.include("isBullet", "collider");
+
+  let collidingEnemy: Entity | null;
+  let recievingDmgTimer = 0;
+  const damageTickerRate = 0.5;
+
+  function damagePlayer(dmg: number) {
+    if (playerQuery.size() <= 0) return;
+    const health = playerQuery.entities[0].get("health");
+    health.current -= dmg;
+  }
+
+  // Hide debug mesh
+  RapierEngine.debugMesh.visible = false;
 
   return {
     priority: 0,
@@ -33,10 +48,13 @@ export default function GameEngine(world: World): System {
         const transform = world.getComponent<Mesh>(entityId, "transform");
         state.scene.remove(transform);
       });
+
+      playerQuery.on("removed", () => {
+        engine.get("state").current = GameStates.FINISHED;
+      });
     },
     update() {
       // Collisions
-
       RapierEngine.onCollisionDrain((handle1, handle2, started) => {
         const bullet = bullets.entities.find((e) =>
           [handle1, handle2].includes(
@@ -49,11 +67,31 @@ export default function GameEngine(world: World): System {
           ),
         );
 
+        if (playerQuery.size() > 0) {
+          const isPlayer = [handle1, handle2].includes(
+            playerQuery.entities[0].get<RAPIER.Collider>("collider").handle,
+          );
+
+          if (isPlayer && enemy) {
+            collidingEnemy = started ? enemy : null;
+          }
+        } else {
+          collidingEnemy = null;
+        }
+
         if (bullet && enemy && started) {
           const damage = bullet.get<number>("damage");
           enemy.get("health").current -= damage;
         }
       });
+
+      if (collidingEnemy) {
+        recievingDmgTimer += Time.delta;
+        if (recievingDmgTimer > damageTickerRate) {
+          damagePlayer(collidingEnemy.get("damage"));
+          recievingDmgTimer = 0;
+        }
+      }
 
       // Lifetime entities
       lifeTimers.entities.forEach((entity: Entity) => {

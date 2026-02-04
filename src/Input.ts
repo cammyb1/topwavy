@@ -3,6 +3,11 @@ import { Vector2 } from "three";
 
 export interface InputConfig {
   mandatory: boolean;
+  states: {
+    down: boolean;
+    up: boolean;
+    pressed: boolean;
+  };
   values: Record<string, boolean>;
 }
 
@@ -68,14 +73,23 @@ class Input extends EventRegistry<InputEvents> {
     });
   }
 
-  register(name: string, keys: string[], isMandatory = false) {
+  register(
+    name: string,
+    keys: string[],
+    config: { mandatory: boolean } = { mandatory: false },
+  ) {
     // add or override
     this.keys.set(name, {
       values: keys.reduce<Record<string, boolean>>((acc, k: string) => {
         acc[k.trim()] = false;
         return acc;
       }, {}),
-      mandatory: isMandatory,
+      states: {
+        down: false,
+        up: false,
+        pressed: false,
+      },
+      mandatory: config.mandatory,
     });
   }
 
@@ -87,14 +101,30 @@ class Input extends EventRegistry<InputEvents> {
     });
   }
 
+  private _configPressed(config: InputConfig): boolean {
+    return config.mandatory
+      ? Object.keys(config.values).every((k) => config.values[k])
+      : Object.keys(config.values).some((k) => config.values[k]);
+  }
+
+  isDown(name: string): boolean {
+    if (!this.keys.has(name)) return false;
+
+    const config = this.keys.get(name)!;
+    return config.states.down;
+  }
+
+  isUp(name: string): boolean {
+    if (!this.keys.has(name)) return false;
+
+    const config = this.keys.get(name)!;
+    return config.states.up;
+  }
+
   isPressed(name: string): boolean {
     if (!this.keys.has(name)) return false;
     const config = this.keys.get(name)!;
-    const keys = Object.keys(config.values);
-
-    return config.mandatory
-      ? keys.every((k) => config.values[k])
-      : keys.some((k) => config.values[k]);
+    return config.states.pressed;
   }
 
   checkKeys(keyEvent: KeyboardEvent, direction: Direction) {
@@ -106,10 +136,44 @@ class Input extends EventRegistry<InputEvents> {
 
     this.keys.forEach((keyConfig: InputConfig) => {
       const keyCode = keyEvent.code;
+      const values = keyConfig.values;
 
-      if (keyConfig.values[keyCode] !== undefined) {
-        keyConfig.values[keyCode] = direction === KeyDirection.DOWN;
+      const existInConfig = values[keyCode] !== undefined;
+      let pressed = this._configPressed(keyConfig);
+
+      if (
+        direction === KeyDirection.UP &&
+        !keyEvent.repeat &&
+        pressed &&
+        existInConfig
+      ) {
+        keyConfig.states.up = true;
+        let id = requestAnimationFrame(() => {
+          keyConfig.states.up = false;
+          cancelAnimationFrame(id);
+        });
       }
+
+      if (existInConfig) {
+        values[keyCode] = direction === KeyDirection.DOWN;
+      }
+
+      pressed = this._configPressed(keyConfig);
+
+      if (
+        direction === KeyDirection.DOWN &&
+        !keyEvent.repeat &&
+        pressed &&
+        existInConfig
+      ) {
+        keyConfig.states.down = true;
+        let id = requestAnimationFrame(() => {
+          keyConfig.states.down = false;
+          cancelAnimationFrame(id);
+        });
+      }
+
+      keyConfig.states.pressed = pressed;
     });
   }
 }
