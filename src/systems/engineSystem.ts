@@ -4,7 +4,7 @@ import { Vector3, type Mesh } from "three";
 import * as RAPIER from "@dimforge/rapier3d";
 import RapierEngine from "../Rapier";
 import { destroyEntityWithCollider } from "../utils";
-import { GameStates } from "../entities/Engine";
+import { FiniteState } from "../state";
 
 export default function GameEngine(world: World): System {
   const renderables = world.include("transform");
@@ -22,8 +22,15 @@ export default function GameEngine(world: World): System {
   const damageTickerRate = 0.5;
 
   function damagePlayer(dmg: number) {
-    if (playerQuery.size() <= 0) return;
+    if (playerQuery.size() <= 0 || !dmg) return;
     const health = playerQuery.entities[0].get("health");
+    console.log("Damage Player", health.current);
+
+    if (health.current - dmg < 0) {
+      collidingEnemy = null;
+      // End Game
+      engine.get<FiniteState>("state").setActiveState("finish");
+    }
     health.current -= dmg;
   }
 
@@ -48,10 +55,6 @@ export default function GameEngine(world: World): System {
         const transform = world.getComponent<Mesh>(entityId, "transform");
         state.scene.remove(transform);
       });
-
-      playerQuery.on("removed", () => {
-        engine.get("state").current = GameStates.FINISHED;
-      });
     },
     update() {
       // Collisions
@@ -73,10 +76,12 @@ export default function GameEngine(world: World): System {
           );
 
           if (isPlayer && enemy) {
+            if (started) {
+              // First Touch
+              damagePlayer(enemy.get<number>("damage"));
+            }
             collidingEnemy = started ? enemy : null;
           }
-        } else {
-          collidingEnemy = null;
         }
 
         if (bullet && enemy && started) {
@@ -88,7 +93,7 @@ export default function GameEngine(world: World): System {
       if (collidingEnemy) {
         recievingDmgTimer += Time.delta;
         if (recievingDmgTimer > damageTickerRate) {
-          damagePlayer(collidingEnemy.get("damage"));
+          damagePlayer(collidingEnemy.get<number>("damage"));
           recievingDmgTimer = 0;
         }
       }
@@ -98,7 +103,7 @@ export default function GameEngine(world: World): System {
         const lifetime = entity.get("lifetime");
         lifetime.current -= lifetime.decreaseSpeed * Time.delta;
         if (lifetime.current < 0) {
-          destroyEntityWithCollider(entity, world);
+          destroyEntityWithCollider(entity.id, world);
         }
       });
 
@@ -106,11 +111,11 @@ export default function GameEngine(world: World): System {
       healthEs.entities.forEach((entity: Entity) => {
         const health = entity.get("health");
         if (health.current < 0) {
-          destroyEntityWithCollider(entity, world);
+          destroyEntityWithCollider(entity.id, world);
         }
       });
 
-      // Movement
+      // Movement sync with mesh and physics
       movables.entities.forEach((entity: Entity) => {
         const transform = entity.get("transform");
         const rb = entity.get<RAPIER.RigidBody>("rigidbody");

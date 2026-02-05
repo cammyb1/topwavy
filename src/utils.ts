@@ -1,28 +1,24 @@
 import type { Collider, RigidBody } from "@dimforge/rapier3d";
-import type { Entity, World } from "@jael-ecs/core";
+import type { World } from "@jael-ecs/core";
 import RapierEngine from "./Rapier";
-import { GameStates, type GameState } from "./entities/Engine";
-
-export function isPaused(currentState: GameState): boolean {
-  return ([GameStates.IDLE, GameStates.PAUSED] as GameState[]).includes(
-    currentState,
-  );
-}
 
 export function destroyEntityWithCollider(
-  entity: Entity,
+  entityId: number,
   world: World,
 ): boolean {
-  if (world.exist(entity.id)) {
-    const rb = entity.get<RigidBody>("rigidbody");
-    const col = entity.get<Collider>("collider");
-    if (rb) {
-      RapierEngine.world.removeRigidBody(rb);
+  if (world.exist(entityId)) {
+    const proxy = world.getEntity(entityId);
+    if (proxy) {
+      const rb = proxy.get<RigidBody>("rigidbody");
+      const col = proxy.get<Collider>("collider");
+      if (rb) {
+        RapierEngine.world.removeRigidBody(rb);
+      }
+      if (col) {
+        RapierEngine.world.removeCollider(col, true);
+      }
+      world.destroy(entityId);
     }
-    if (col) {
-      RapierEngine.world.removeCollider(col, true);
-    }
-    world.destroy(entity.id);
     return true;
   }
   return false;

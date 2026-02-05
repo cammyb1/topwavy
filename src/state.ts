@@ -1,0 +1,53 @@
+import { EventRegistry } from "@jael-ecs/core";
+
+export interface State {
+  name: string;
+  enter?: (_prev: State | undefined, machine: FiniteState) => void;
+  exit?: () => void;
+}
+
+export interface FiniteStateEvents {
+  change: State | undefined;
+}
+
+export class FiniteState extends EventRegistry<FiniteStateEvents> {
+  states: State[];
+  active: State | undefined;
+
+  constructor() {
+    super();
+    this.states = [];
+  }
+
+  register(state: State) {
+    if (!this.states.includes(state)) {
+      this.states.push(state);
+    }
+  }
+
+  forwardActive() {
+    const idxActive = this.active ? this.states.indexOf(this.active) : 0;
+    if (idxActive >= 0) {
+      const current = this.states[idxActive + 1];
+      if (current) {
+        this.setActiveState(current.name);
+      } else {
+        this.setActiveState(this.states[0].name);
+      }
+    }
+  }
+
+  setActiveState(name: string) {
+    const state = this.states.find((s) => s.name === name);
+    if (state) {
+      const prev = this.active;
+      if (prev) {
+        prev.exit?.();
+      }
+
+      this.active = state;
+      state.enter?.(prev, this);
+      this.emit("change", prev);
+    }
+  }
+}

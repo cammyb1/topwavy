@@ -3,7 +3,7 @@ import { Mesh, Plane, Raycaster, Vector3 } from "three";
 import type { GLState } from "../mount3";
 import Bullet from "../entities/Bullet";
 import { Input } from "../Input";
-import { isPaused } from "../utils";
+import { FiniteState } from "../state";
 
 export default function PlayerController(world: World): System {
   const playerQuery = world.include("isPlayer");
@@ -30,7 +30,10 @@ export default function PlayerController(world: World): System {
   Input.register("run", ["ShiftLeft"]);
 
   Input.pointer.on("down", () => {
-    if (playerQuery.size() <= 0 || isPaused(engine.get("state").current))
+    if (
+      playerQuery.size() <= 0 ||
+      engine.get<FiniteState>("state").active?.name !== "start"
+    )
       return;
     shootingStarted = Time.elapsed;
     shooting = true;

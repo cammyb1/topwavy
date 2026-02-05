@@ -21,7 +21,7 @@ export default function Enemy(world: World, startingPos?: Vector3): Entity {
   }
 
   enemy.add("health", { current: 100 });
-  enemy.add("damage", 15);
+  enemy.add("damage", 10);
   enemy.add("isEnemy", true);
 
   return enemy;

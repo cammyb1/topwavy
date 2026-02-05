@@ -10,6 +10,9 @@ import {
 } from "three";
 import RapierEngine from "../Rapier";
 import type { Entity } from "@jael-ecs/core";
+import { FiniteState, type State } from "../state";
+import Player from "./Player";
+import { Input } from "../Input";
 
 export interface WaveConfig {
   current: number;
@@ -18,18 +21,9 @@ export interface WaveConfig {
   sleepTime: number;
 }
 
-export type GameState = (typeof GameStates)[keyof typeof GameStates];
-
-export const GameStates = Object.freeze({
-  IDLE: 0,
-  STARTED: 1,
-  PAUSED: 2,
-  FINISHED: 3,
-} as const);
-
 export function Engine(state: GLState, world: World): Entity {
   const engineId = world.create();
-  const engineProxy: Entity = world.getEntity(engineId) as Entity;
+  const proxy: Entity = world.getEntity(engineId) as Entity;
 
   // Ground shadow;
   const planeGeo = new PlaneGeometry(10, 10, 10);
@@ -72,15 +66,58 @@ export function Engine(state: GLState, world: World): Entity {
   state.scene.add(directional);
   state.scene.add(RapierEngine.debugMesh);
 
-  engineProxy.add("isEngine", true);
-  engineProxy.add("gl", state);
-  engineProxy.add("state", { current: GameStates.IDLE });
-  engineProxy.add("waveConfig", {
+  // Change base state (pause/start/idle/finish screen(?))
+  Input.on("down", ({ code }) => {
+    // Reserved key
+    if (code === "Space") {
+      if (
+        ["idle", "paused"].includes(
+          proxy.get<FiniteState>("state").active?.name as string,
+        )
+      )
+        proxy.get<FiniteState>("state").setActiveState("start");
+      else if (proxy.get<FiniteState>("state").active?.name === "finish")
+        proxy.get<FiniteState>("state").setActiveState("idle");
+      else if (proxy.get<FiniteState>("state").active?.name !== "paused")
+        proxy.get<FiniteState>("state").setActiveState("paused");
+    }
+  });
+
+  // Basic finite state machine
+  const IDLE_STATE: State = {
+    name: "idle",
+    enter(_prev, host) {
+      // Create Player Entity
+      Player(world);
+
+      // Restart
+      if (_prev?.name === "finish") {
+        host.setActiveState("start");
+      }
+    },
+    exit() {},
+  };
+  const PAUSED_STATE: State = { name: "paused" };
+  const START_STATE: State = { name: "start" };
+  const FINISHED_STATE: State = { name: "finish" };
+
+  const stateMachine = new FiniteState();
+  stateMachine.register(IDLE_STATE);
+  stateMachine.register(PAUSED_STATE);
+  stateMachine.register(START_STATE);
+  stateMachine.register(FINISHED_STATE);
+
+  stateMachine.setActiveState("idle");
+
+  proxy.add("isEngine", true);
+  proxy.add("gl", state);
+  proxy.add("state", stateMachine);
+  proxy.add("waveConfig", {
     current: 1,
     maxWave: 10,
     enemiesPerWave: 2,
     sleepTime: 0.5,
   } as WaveConfig);
 
-  return engineProxy;
+  return proxy;
 }
