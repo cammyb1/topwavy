@@ -2,9 +2,9 @@ import { type World, type System, type Entity, Time } from "@jael-ecs/core";
 import type { GLState } from "../mount3";
 import { Vector3, type Mesh } from "three";
 import * as RAPIER from "@dimforge/rapier3d";
-import RapierEngine from "../Rapier";
+import RapierEngine from "../helpers/rapier";
 import { destroyEntityWithCollider } from "../utils";
-import { FiniteState } from "../state";
+import { FiniteState } from "../helpers/state";
 
 export default function GameEngine(world: World): System {
   const renderables = world.include("transform");
@@ -20,6 +20,7 @@ export default function GameEngine(world: World): System {
   let collidingEnemy: Entity | null;
   let recievingDmgTimer = 0;
   const damageTickerRate = 0.5;
+  const linearVelocity = new Vector3();
 
   function damagePlayer(dmg: number) {
     if (playerQuery.size() <= 0 || !dmg) return;
@@ -35,7 +36,7 @@ export default function GameEngine(world: World): System {
   }
 
   // Hide debug mesh
-  RapierEngine.debugMesh.visible = false;
+  RapierEngine.debugMesh.visible = true;
 
   return {
     priority: 0,
@@ -87,6 +88,7 @@ export default function GameEngine(world: World): System {
         if (bullet && enemy && started) {
           const damage = bullet.get<number>("damage");
           enemy.get("health").current -= damage;
+          destroyEntityWithCollider(bullet.id, world);
         }
       });
 
@@ -120,9 +122,9 @@ export default function GameEngine(world: World): System {
         const transform = entity.get("transform");
         const rb = entity.get<RAPIER.RigidBody>("rigidbody");
         const velocity = entity.get("velocity");
-        const linearVelocity = new Vector3().copy(rb.linvel());
+        rb.setRotation(transform.quaternion, true);
+        rb.setLinvel(linearVelocity.copy(rb.linvel()).add(velocity), true);
         transform.position.copy(rb.translation());
-        rb.setLinvel(linearVelocity.add(velocity), true);
       });
     },
   };

@@ -8,11 +8,11 @@ import {
   ShadowMaterial,
   Vector3,
 } from "three";
-import RapierEngine from "../Rapier";
+import RapierEngine from "../helpers/rapier";
 import type { Entity } from "@jael-ecs/core";
-import { FiniteState, type State } from "../state";
+import { FiniteState, type State } from "../helpers/state";
 import Player from "./Player";
-import { Input } from "../Input";
+import { Input } from "../helpers/Input";
 
 export interface WaveConfig {
   current: number;
@@ -29,10 +29,36 @@ export function Engine(state: GLState, world: World): Entity {
   const planeGeo = new PlaneGeometry(10, 10, 10);
   const shadowMaterial = new ShadowMaterial();
 
-  // GroundCollider
-  const groundCollider = RapierEngine.collider.box({ x: 100, y: 0, z: 100 });
+  const playgroundSize = 100;
+
+  // Ground + borders
+  const groundCollider = RapierEngine.collider.box({
+    x: playgroundSize,
+    y: 0,
+    z: playgroundSize,
+  });
   groundCollider.setTranslation(0, -1, 0);
   RapierEngine.world.createCollider(groundCollider);
+
+  const topBorder = RapierEngine.collider.box({
+    x: playgroundSize,
+    y: 1,
+    z: 0.5,
+  });
+  topBorder.setTranslation(0, 0, -playgroundSize);
+  RapierEngine.world.createCollider(topBorder);
+
+  const botBorder = RapierEngine.collider.box({ x: 100, y: 1, z: 0.5 });
+  botBorder.setTranslation(0, 0, playgroundSize);
+  RapierEngine.world.createCollider(botBorder);
+
+  const leftBorder = RapierEngine.collider.box({ x: 0.5, y: 1, z: 100 });
+  leftBorder.setTranslation(playgroundSize, 0, 0);
+  RapierEngine.world.createCollider(leftBorder);
+
+  const rightBorder = RapierEngine.collider.box({ x: 0.5, y: 1, z: 100 });
+  rightBorder.setTranslation(-playgroundSize, 0, 0);
+  RapierEngine.world.createCollider(rightBorder);
 
   const ground = new Mesh(planeGeo, shadowMaterial);
   ground.scale.addScalar(10);

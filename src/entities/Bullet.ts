@@ -6,7 +6,7 @@ import {
   Vector3,
   type Vector3Like,
 } from "three";
-import RapierEngine from "../Rapier";
+import RapierEngine from "../helpers/rapier";
 import * as RAPIER from "@dimforge/rapier3d";
 
 export default function Bullet(world: World, startPos: Vector3Like): Entity {

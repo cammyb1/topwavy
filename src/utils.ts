@@ -1,6 +1,6 @@
 import type { Collider, RigidBody } from "@dimforge/rapier3d";
 import type { World } from "@jael-ecs/core";
-import RapierEngine from "./Rapier";
+import RapierEngine from "./helpers/rapier";
 
 export function destroyEntityWithCollider(
   entityId: number,

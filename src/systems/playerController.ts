@@ -2,8 +2,8 @@ import { Time, type System, type World } from "@jael-ecs/core";
 import { Mesh, Plane, Raycaster, Vector3 } from "three";
 import type { GLState } from "../mount3";
 import Bullet from "../entities/Bullet";
-import { Input } from "../Input";
-import { FiniteState } from "../state";
+import { Input } from "../helpers/Input";
+import { FiniteState } from "../helpers/state";
 
 export default function PlayerController(world: World): System {
   const playerQuery = world.include("isPlayer");
@@ -15,12 +15,16 @@ export default function PlayerController(world: World): System {
   const hit = new Vector3();
   const direction = new Vector3();
   const worldDir = new Vector3();
+  const cameraOffset = new Vector3(0, 50, 20);
+  const cameraLerpVector = new Vector3();
+  const cameraFollowSpeed = 5;
 
   const speed = 15;
-  const bulletSpeed = 50;
+  const bulletSpeed = 30;
+  const shootingRate = 0.4;
+
   let shooting = false;
   let shootingStarted = 0;
-  const shootingRate = 0.1;
   let multiplier = 1;
 
   Input.register("forward", ["KeyW", "ArrowUp"]);
@@ -57,7 +61,7 @@ export default function PlayerController(world: World): System {
   }
 
   return {
-    priority: 1,
+    priority: 2,
     update() {
       const state = engine.get<GLState>("gl");
       const player = playerQuery.entities[0];
@@ -65,6 +69,13 @@ export default function PlayerController(world: World): System {
       if (player && state) {
         const transform = player.get<Mesh>("transform");
         const velocity = player.get<Vector3>("velocity");
+
+        cameraLerpVector.copy(transform.position).add(cameraOffset);
+
+        state.camera.position.lerp(
+          cameraLerpVector,
+          Time.delta * cameraFollowSpeed,
+        );
 
         // Movement
         if (Input.isPressed("forward")) {

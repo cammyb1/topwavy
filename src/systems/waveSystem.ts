@@ -2,7 +2,7 @@ import { Time, World, type System } from "@jael-ecs/core";
 import Enemy from "../entities/Enemy";
 import { Vector3 } from "three";
 import { type WaveConfig } from "../entities/Engine";
-import { FiniteState } from "../state";
+import { FiniteState } from "../helpers/state";
 import { destroyEntityWithCollider } from "../utils";
 
 export default function WaveSystem(world: World): System {

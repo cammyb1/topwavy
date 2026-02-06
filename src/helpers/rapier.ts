@@ -1,4 +1,4 @@
-import RAPIER, * as Rapier from "@dimforge/rapier3d";
+import * as Rapier from "@dimforge/rapier3d";
 import {
   BufferAttribute,
   BufferGeometry,

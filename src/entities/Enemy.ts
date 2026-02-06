@@ -9,9 +9,6 @@ export default function Enemy(world: World, startingPos?: Vector3): Entity {
   const mesh = enemy.get<Mesh<BoxGeometry, MeshLambertMaterial>>("transform");
   const rb = enemy.get<RigidBody>("rigidbody");
 
-  rb.enableCcd(true);
-
-  mesh.scale.copy(size);
   mesh.material = mesh.material.clone();
   mesh.material.color.set("green");
 
