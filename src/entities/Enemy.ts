@@ -1,25 +1,53 @@
 import type { World, Entity } from "@jael-ecs/core";
-import { BoxGeometry, Mesh, MeshLambertMaterial, Vector3 } from "three";
-import BoxLikeEntity from "./BoxLikeEntity";
-import { RigidBody } from "@dimforge/rapier3d";
+import { Group, Vector3 } from "three";
+import { createDynamicBox } from "../utils";
+import type { LoadedModels } from "../game";
+const enemySize = new Vector3(1.5, 1.5, 1.5);
 
 export default function Enemy(world: World, startingPos?: Vector3): Entity {
-  const size = new Vector3(1.5, 1.5, 1.5);
-  const enemy = BoxLikeEntity(world, size);
-  const mesh = enemy.get<Mesh<BoxGeometry, MeshLambertMaterial>>("transform");
-  const rb = enemy.get<RigidBody>("rigidbody");
+  const player = world.include("isPlayer").entities[0];
+  const prefab = world.getPrefab("enemy");
 
-  mesh.material = mesh.material.clone();
-  mesh.material.color.set("green");
+  if (!prefab) {
+    const engine = world.include("isEngine").entities[0];
+    const model = engine.get<LoadedModels>("assets").Character_Enemy;
 
-  if (startingPos) {
-    rb.setTranslation(startingPos, true);
-    mesh.position.copy(startingPos);
+    const indexFinger = model.scene.getObjectByProperty("name", "Index1R");
+
+    // Hide weapons but leave knife model
+    indexFinger?.children.forEach((child) => {
+      if (child.isObject3D && child.name !== "Knife_1") {
+        child.visible = false;
+      }
+    });
+
+    const enemySchema = {
+      transform: model.scene,
+      velocity: new Vector3(),
+      health: { current: 100 },
+      damage: 10,
+      isEnemy: true,
+    };
+
+    if (startingPos) {
+      enemySchema.transform.position.copy(startingPos);
+    }
+
+    world.createPrefab("enemy", enemySchema);
   }
 
-  enemy.add("health", { current: 100 });
-  enemy.add("damage", 10);
-  enemy.add("isEnemy", true);
+  const enemyId = world.instantiate("enemy") as number;
+  const enemyProxy = world.getEntity(enemyId);
+  const phyInfo = createDynamicBox(enemySize);
 
-  return enemy;
+  if (startingPos) {
+    enemyProxy?.get<Group>("transform").position.copy(startingPos);
+    phyInfo.rb.setTranslation(startingPos, true);
+  }
+
+  enemyProxy?.add("target", player);
+  enemyProxy?.add("rigidbody", phyInfo.rb);
+  enemyProxy?.add("collider", phyInfo.col);
+
+  return world.getEntity(enemyId) as Entity;
 }

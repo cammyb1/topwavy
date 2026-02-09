@@ -26,37 +26,34 @@ export default function GameEngine(world: World): System {
     if (playerQuery.size() <= 0 || !dmg) return;
     const health = playerQuery.entities[0].get("health");
     console.log("Damage Player", health.current);
-
-    if (health.current - dmg < 0) {
-      collidingEnemy = null;
-      // End Game
-      engine.get<FiniteState>("state").setActiveState("finish");
-    }
     health.current -= dmg;
   }
 
   // Hide debug mesh
-  RapierEngine.debugMesh.visible = true;
+  RapierEngine.debugMesh.visible = false;
+
+  playerQuery.on("removed", () => {
+    engine.get<FiniteState>("state").setActiveState("finish");
+  });
+
+  const state = engine.get<GLState>("gl");
+
+  // Rendering
+  renderables.entities.forEach((entity: Entity) => {
+    state.scene.add(entity.get("transform"));
+  });
+
+  renderables.on("added", (entityId) => {
+    const transform = world.getComponent<Mesh>(entityId, "transform");
+    state.scene.add(transform);
+  });
+  renderables.on("removed", (entityId) => {
+    const transform = world.getComponent<Mesh>(entityId, "transform");
+    state.scene.remove(transform);
+  });
 
   return {
     priority: 0,
-    init() {
-      const state = engine.get<GLState>("gl");
-
-      // Rendering
-      renderables.entities.forEach((entity: Entity) => {
-        state.scene.add(entity.get("transform"));
-      });
-
-      renderables.on("added", (entityId) => {
-        const transform = world.getComponent<Mesh>(entityId, "transform");
-        state.scene.add(transform);
-      });
-      renderables.on("removed", (entityId) => {
-        const transform = world.getComponent<Mesh>(entityId, "transform");
-        state.scene.remove(transform);
-      });
-    },
     update() {
       // Collisions
       RapierEngine.onCollisionDrain((handle1, handle2, started) => {

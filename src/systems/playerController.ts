@@ -1,5 +1,5 @@
 import { Time, type System, type World } from "@jael-ecs/core";
-import { Mesh, Plane, Raycaster, Vector3 } from "three";
+import { Group, Plane, Raycaster, Vector3 } from "three";
 import type { GLState } from "../mount3";
 import Bullet from "../entities/Bullet";
 import { Input } from "../helpers/Input";
@@ -20,8 +20,8 @@ export default function PlayerController(world: World): System {
   const cameraFollowSpeed = 5;
 
   const speed = 15;
-  const bulletSpeed = 30;
-  const shootingRate = 0.4;
+  const bulletSpeed = 70;
+  const shootingRate = 0.25;
 
   let shooting = false;
   let shootingStarted = 0;
@@ -43,9 +43,13 @@ export default function PlayerController(world: World): System {
     shooting = true;
 
     // First Bullet
-    const transform = playerQuery.entities[0].get<Mesh>("transform");
+    const player = playerQuery.entities[0];
+    const transform = player.get<Group>("transform");
+    const gunPoint = player.get<Vector3>("gunPoint");
     transform.getWorldDirection(worldDir);
-    createBullet(transform.position, worldDir);
+
+    console.log(gunPoint);
+    createBullet(transform.position, gunPoint.clone().add(worldDir));
   });
 
   Input.pointer.on("up", () => {
@@ -67,7 +71,7 @@ export default function PlayerController(world: World): System {
       const player = playerQuery.entities[0];
 
       if (player && state) {
-        const transform = player.get<Mesh>("transform");
+        const transform = player.get<Group>("transform");
         const velocity = player.get<Vector3>("velocity");
 
         cameraLerpVector.copy(transform.position).add(cameraOffset);
@@ -97,7 +101,7 @@ export default function PlayerController(world: World): System {
         ) {
           shootingStarted = Time.elapsed;
 
-          const transform = player.get<Mesh>("transform");
+          const transform = player.get<Group>("transform");
           transform.getWorldDirection(worldDir);
           createBullet(transform.position, worldDir);
         }
@@ -116,7 +120,7 @@ export default function PlayerController(world: World): System {
         // Look at logic
         caster.setFromCamera(Input.pointer.position, state.camera);
         caster.ray.intersectPlane(plane, hit);
-        hit.y = 0; // Avoid loking down
+        hit.y = transform.scale.y / 2; // Avoid loking down
 
         transform.lookAt(hit);
       }

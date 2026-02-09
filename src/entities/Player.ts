@@ -1,17 +1,46 @@
 import type { World, Entity } from "@jael-ecs/core";
-import { Vector3 } from "three";
-import BoxLikeEntity from "./BoxLikeEntity";
-import { RigidBody } from "@dimforge/rapier3d";
+import { Group, Vector3 } from "three";
+import { createDynamicBox } from "../utils";
+import { type LoadedModels } from "../game";
 
 export default function Player(world: World): Entity {
-  const player = BoxLikeEntity(world, new Vector3(1, 1, 1));
-  player.add("health", { current: 100 });
-  player.add("isPlayer", true);
+  const engine = world.include("isEngine").entities[0];
+  const prefab = world.getPrefab("player");
+  if (!prefab) {
+    const gunPoint = new Vector3();
+    const model = engine.get<LoadedModels>("assets").Character_Soldier;
 
-  const rb = player.get<RigidBody>("rigidbody");
+    const indexFinger = model.scene.getObjectByProperty("name", "Index1R");
 
-  rb.lockRotations(true, true);
-  rb.setEnabledRotations(false, true, false, true);
+    // Hide weapons but leave knife model
+    indexFinger?.children.forEach((child) => {
+      if (child.isObject3D && child.name !== "Pistol") {
+        child.visible = false;
+      }
+      if (child.name === "Pistol") {
+        child.getWorldPosition(gunPoint);
+      }
+    });
+
+    const playerSchema = {
+      transform: model.scene,
+      gunPoint: gunPoint,
+      velocity: new Vector3(),
+      health: { current: 100 },
+      isPlayer: true,
+    };
+
+    world.createPrefab("player", playerSchema);
+  }
+
+  const playerId = world.instantiate("player") as number;
+  const player = world.getEntity(playerId) as Entity;
+  const phyInfo = createDynamicBox(new Vector3(1, 1, 1));
+  player.get<Group>("transform").position.set(0, 0.5, 0);
+  phyInfo.rb.lockRotations(true, true);
+  phyInfo.rb.setEnabledRotations(false, true, false, true);
+  player.add("rigidbody", phyInfo.rb);
+  player.add("collider", phyInfo.col);
 
   return player;
 }

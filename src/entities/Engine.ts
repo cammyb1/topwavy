@@ -11,8 +11,8 @@ import {
 import RapierEngine from "../helpers/rapier";
 import type { Entity } from "@jael-ecs/core";
 import { FiniteState, type State } from "../helpers/state";
-import Player from "./Player";
 import { Input } from "../helpers/Input";
+import Player from "./Player";
 
 export interface WaveConfig {
   current: number;
@@ -37,7 +37,7 @@ export function Engine(state: GLState, world: World): Entity {
     y: 0,
     z: playgroundSize,
   });
-  groundCollider.setTranslation(0, -1, 0);
+  groundCollider.setTranslation(0, 0, 0);
   RapierEngine.world.createCollider(groundCollider);
 
   const topBorder = RapierEngine.collider.box({
@@ -64,7 +64,7 @@ export function Engine(state: GLState, world: World): Entity {
   ground.scale.addScalar(10);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
-  ground.position.setY(-0.5);
+  ground.position.setY(0);
   ground.material.transparent = true;
   ground.material.opacity = 0.5;
 
@@ -85,8 +85,9 @@ export function Engine(state: GLState, world: World): Entity {
 
   // Set default scene
 
+  const zeroVector = new Vector3(0, 0, 0);
   state.camera.position.set(0, 50, 20);
-  state.camera.lookAt(new Vector3(0, 0, 0));
+  state.camera.lookAt(zeroVector);
   state.scene.add(ground);
   state.scene.add(ambient);
   state.scene.add(directional);
@@ -96,16 +97,12 @@ export function Engine(state: GLState, world: World): Entity {
   Input.on("down", ({ code }) => {
     // Reserved key
     if (code === "Space") {
-      if (
-        ["idle", "paused"].includes(
-          proxy.get<FiniteState>("state").active?.name as string,
-        )
-      )
-        proxy.get<FiniteState>("state").setActiveState("start");
-      else if (proxy.get<FiniteState>("state").active?.name === "finish")
-        proxy.get<FiniteState>("state").setActiveState("idle");
-      else if (proxy.get<FiniteState>("state").active?.name !== "paused")
-        proxy.get<FiniteState>("state").setActiveState("paused");
+      const state = proxy.get<FiniteState>("state");
+
+      if (["idle", "paused"].includes(state.active?.name as string))
+        state.setActiveState("start");
+      else if (state.active?.name === "finish") state.setActiveState("idle");
+      else if (state.active?.name !== "paused") state.setActiveState("paused");
     }
   });
 
@@ -113,12 +110,13 @@ export function Engine(state: GLState, world: World): Entity {
   const IDLE_STATE: State = {
     name: "idle",
     enter(_prev, host) {
-      // Create Player Entity
-      Player(world);
-
-      // Restart
+      // Restart game
       if (_prev?.name === "finish") {
         host.setActiveState("start");
+        // Reset camera view
+        state.camera.position.set(0, 50, 20);
+        state.camera.lookAt(zeroVector);
+        Player(world);
       }
     },
     exit() {},
