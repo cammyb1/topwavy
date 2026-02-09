@@ -6,21 +6,33 @@ import GameEngine from "./systems/engineSystem";
 import EnemyAI from "./systems/enemySystem";
 import PlayerController from "./systems/playerController";
 import WaveSystem from "./systems/waveSystem";
-import { FiniteState } from "./helpers/state";
+import { FiniteState, type State } from "./helpers/state";
 import {
   GLTFLoader,
   SkeletonUtils,
   type GLTF,
 } from "three/examples/jsm/Addons.js";
 import Player from "./entities/Player";
-import UISystem from "./systems/uiSystem";
+import { DefaultLoadingManager } from "three";
+import FileLoader from "./helpers/FileLoader";
 
-const loader = new GLTFLoader();
+const gltfLoader = new GLTFLoader();
+const fileLoader = new FileLoader<Document>();
+
 const getModelPath = (model: string) => `./models/${model}.gltf`;
+const getUIPath = (ui: string) => `./ui/${ui}.html`;
+
 export type LoadedModels = { [k: string]: GLTF };
+export type LoadedUIElements = { [k: string]: string };
+
+const loadUI = async (path: string) =>
+  await fileLoader
+    .setResponseType("document")
+    .setMimeType("text/html")
+    .loadAsync(getUIPath(path));
 
 const loadModel = async (model: string) =>
-  await loader.loadAsync(getModelPath(model));
+  await gltfLoader.loadAsync(getModelPath(model));
 
 async function preloadModels(): Promise<LoadedModels> {
   const models = ["Character_Soldier", "Character_Enemy", "Character_Hazmat"];
@@ -32,6 +44,18 @@ async function preloadModels(): Promise<LoadedModels> {
   }
 
   return loaded_models;
+}
+
+async function preloadUI(): Promise<LoadedUIElements> {
+  const screens = ["StartScreen", "PauseScreen", "FinishScreen"];
+  let loaded_screens: LoadedUIElements = {};
+
+  for (let ui of screens) {
+    const data = await loadUI(ui);
+    loaded_screens[ui] = data.body.innerHTML;
+  }
+
+  return loaded_screens;
 }
 
 export function mountExperience(state: GLState) {
@@ -47,14 +71,42 @@ export function mountExperience(state: GLState) {
   world.prefabManager.addCloner("skeletal", (v) => SkeletonUtils.clone(v));
 
   const engine = Engine(state, world);
+  const uiContainer: HTMLElement = document.getElementById("ui") as HTMLElement;
+  const loader: HTMLElement = document.getElementById("loader") as HTMLElement;
 
-  preloadModels().then((models: LoadedModels) => {
-    engine.add("assets", models);
+  const promise = Promise.all([preloadModels(), preloadUI()]);
+
+  DefaultLoadingManager.onProgress = (_url, loaded, total) => {
+    loader.innerHTML = `<div>
+      ${Math.floor((loaded / total) * 100)}%
+    <div>`;
+  };
+
+  promise.then(([assets, screens]: [LoadedModels, LoadedUIElements]) => {
+    engine.add("assets", assets);
+    engine.add("screens", screens);
+
+    uiContainer.innerHTML = screens.StartScreen;
+
+    const machine = engine.get<FiniteState>("state");
+
+    machine.on("change", (prev: State | undefined) => {
+      if (prev) {
+        if (["idle", "paused"].includes(prev.name)) {
+          uiContainer.innerHTML = "";
+        }
+        if (prev.name === "start") {
+          if (machine.active?.name === "paused") {
+            uiContainer.innerHTML = screens.PauseScreen;
+          } else {
+            uiContainer.innerHTML = screens.FinishScreen;
+          }
+        }
+      }
+    });
 
     // Create Player Entity
     Player(world);
-
-    world.addSystem(UISystem(world));
     world.addSystem(GameEngine(world));
     world.addSystem(PlayerController(world));
     world.addSystem(EnemyAI(world));

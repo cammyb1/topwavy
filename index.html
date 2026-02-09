@@ -23,11 +23,38 @@
         left: 0;
         z-index: 1;
       }
+      @keyframes easein {
+        from {
+          opacity: 0;
+        }
+
+        to {
+          opacity: 1;
+        }
+      }
+      .full-screen {
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 50px;
+        font-family: "calibri";
+        text-transform: uppercase;
+        animation: easein 0.5s forwards;
+      }
     </style>
   </head>
   <body>
     <canvas></canvas>
-    <div id="ui"></div>
+    <div id="ui">
+      <div id="loader" class="full-screen">
+        <div>0 %</div>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
