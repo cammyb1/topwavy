@@ -22,6 +22,13 @@ export default function Player(world: World): Entity {
       }
     });
 
+    model.scene.traverse((node) => {
+      if (node.isObject3D) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+      }
+    });
+
     const playerSchema = {
       transform: model.scene,
       gunPoint: gunPoint,

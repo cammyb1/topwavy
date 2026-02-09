@@ -21,6 +21,13 @@ export default function Enemy(world: World, startingPos?: Vector3): Entity {
       }
     });
 
+    model.scene.traverse((node) => {
+      if (node.isObject3D) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+      }
+    });
+
     const enemySchema = {
       transform: model.scene,
       velocity: new Vector3(),

@@ -47,8 +47,6 @@ export default function PlayerController(world: World): System {
     const transform = player.get<Group>("transform");
     const gunPoint = player.get<Vector3>("gunPoint");
     transform.getWorldDirection(worldDir);
-
-    console.log(gunPoint);
     createBullet(transform.position, gunPoint.clone().add(worldDir));
   });
 

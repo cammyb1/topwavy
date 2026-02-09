@@ -13,6 +13,7 @@ import {
   type GLTF,
 } from "three/examples/jsm/Addons.js";
 import Player from "./entities/Player";
+import UISystem from "./systems/uiSystem";
 
 const loader = new GLTFLoader();
 const getModelPath = (model: string) => `./models/${model}.gltf`;
@@ -53,6 +54,7 @@ export function mountExperience(state: GLState) {
     // Create Player Entity
     Player(world);
 
+    world.addSystem(UISystem(world));
     world.addSystem(GameEngine(world));
     world.addSystem(PlayerController(world));
     world.addSystem(EnemyAI(world));
