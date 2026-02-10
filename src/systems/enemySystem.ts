@@ -12,14 +12,19 @@ export default function EnemyAI(world: World): System {
       query.entities.forEach((enemy: Entity) => {
         const mesh = enemy.get("transform");
         const velocity = enemy.get("velocity");
+        const machine = enemy.get("machine");
         const targetMesh = enemy.get("target").get("transform");
 
         if (targetMesh) {
           if (targetMesh.position.distanceTo(mesh.position) < 20) {
+            if (machine.active?.name !== "punch") {
+              machine.setActiveState("walk");
+            }
             mesh.lookAt(targetMesh.position);
             mesh.getWorldDirection(targetDir);
             velocity.copy(targetDir.multiplyScalar(speed * Time.delta));
           } else {
+            machine.setActiveState("idle");
             velocity.set(0, 0, 0);
           }
         }

@@ -5,6 +5,9 @@ import Bullet from "../entities/Bullet";
 import { Input } from "../helpers/Input";
 import { FiniteState } from "../helpers/state";
 
+const zeroVector = new Vector3();
+const gunPoint = new Vector3();
+
 export default function PlayerController(world: World): System {
   const playerQuery = world.include("isPlayer");
   const engine = world.include("isEngine").entities[0];
@@ -19,13 +22,13 @@ export default function PlayerController(world: World): System {
   const cameraLerpVector = new Vector3();
   const cameraFollowSpeed = 5;
 
-  const speed = 15;
-  const bulletSpeed = 70;
+  const speed = 10;
+  const bulletSpeed = 80;
   const shootingRate = 0.25;
 
   let shooting = false;
   let shootingStarted = 0;
-  let multiplier = 1;
+  let multiplier = 1.25;
 
   Input.register("forward", ["KeyW", "ArrowUp"]);
   Input.register("backward", ["KeyS", "ArrowDown"]);
@@ -45,9 +48,13 @@ export default function PlayerController(world: World): System {
     // First Bullet
     const player = playerQuery.entities[0];
     const transform = player.get<Group>("transform");
-    const gunPoint = player.get<Vector3>("gunPoint");
-    transform.getWorldDirection(worldDir);
-    createBullet(transform.position, gunPoint.clone().add(worldDir));
+    const gun = transform.getObjectByName("Pistol");
+    if (gun) {
+      gun.updateMatrixWorld(true);
+      gun?.getWorldPosition(gunPoint);
+      gun?.getWorldDirection(worldDir);
+      createBullet(gunPoint, worldDir);
+    }
   });
 
   Input.pointer.on("up", () => {
@@ -55,7 +62,7 @@ export default function PlayerController(world: World): System {
   });
 
   function createBullet(pos: Vector3, dir: Vector3) {
-    const startPos = pos.clone().add(dir);
+    const startPos = pos.clone();
     const velocity = dir.clone().multiplyScalar(bulletSpeed * Time.delta);
     const bulletE = Bullet(world, startPos);
     const vel = bulletE.get<Vector3>("velocity");
@@ -71,6 +78,7 @@ export default function PlayerController(world: World): System {
       if (player && state) {
         const transform = player.get<Group>("transform");
         const velocity = player.get<Vector3>("velocity");
+        const machine = player.get<FiniteState>("machine");
 
         cameraLerpVector.copy(transform.position).add(cameraOffset);
 
@@ -100,11 +108,35 @@ export default function PlayerController(world: World): System {
           shootingStarted = Time.elapsed;
 
           const transform = player.get<Group>("transform");
+          const gun = transform.getObjectByName("Pistol");
+          gun?.getWorldPosition(gunPoint);
           transform.getWorldDirection(worldDir);
-          createBullet(transform.position, worldDir);
+          createBullet(gunPoint, worldDir);
         }
 
-        if (Input.isPressed("run")) {
+        const isRunning = Input.isPressed("run");
+
+        if (direction.equals(zeroVector)) {
+          if (shooting) {
+            machine.setActiveState("idle-shoot");
+          } else {
+            machine.setActiveState("idle");
+          }
+        } else if (!isRunning) {
+          if (shooting) {
+            machine.setActiveState("walk-shoot");
+          } else {
+            machine.setActiveState("walk");
+          }
+        } else {
+          if (shooting) {
+            machine.setActiveState("run-shoot");
+          } else {
+            machine.setActiveState("run");
+          }
+        }
+
+        if (isRunning) {
           multiplier = 1.25;
         } else {
           multiplier = 1;
@@ -113,6 +145,7 @@ export default function PlayerController(world: World): System {
         velocity.copy(
           direction.multiplyScalar(speed * multiplier * Time.delta),
         );
+
         direction.set(0, 0, 0);
 
         // Look at logic

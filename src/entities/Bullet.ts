@@ -37,7 +37,7 @@ export default function Bullet(world: World, startPos: Vector3Like): Entity {
   }
 
   const bulletId = world.instantiate("bullet") as number;
-  const bulletProxy = world.getEntity(bulletId);
+  const bulletProxy = world.getEntity(bulletId) as Entity;
 
   const kinematicDesc = RapierEngine.rigidbody
     .velKinematic()
@@ -50,15 +50,16 @@ export default function Bullet(world: World, startPos: Vector3Like): Entity {
   collider.setActiveCollisionTypes(RAPIER.ActiveCollisionTypes.ALL);
   collider.setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
 
-  bulletProxy?.get<Mesh>("transform").position.copy(startPos);
   kinematicRigidBody.setTranslation(startPos, true);
+  bulletProxy.get<Mesh>("transform").position.copy(startPos);
 
+  kinematicRigidBody.enableCcd(true);
   collider.setDensity(0);
   collider.setRadius(0.25);
   collider.setSensor(true);
 
-  bulletProxy?.add("rigidbody", kinematicRigidBody);
-  bulletProxy?.add("collider", collider);
+  bulletProxy.add("rigidbody", kinematicRigidBody);
+  bulletProxy.add("collider", collider);
 
   scale.set(1, 1, 1);
 

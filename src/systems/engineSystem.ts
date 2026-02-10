@@ -1,6 +1,6 @@
 import { type World, type System, type Entity, Time } from "@jael-ecs/core";
 import type { GLState } from "../mount3";
-import { Vector3, type Mesh } from "three";
+import { AnimationMixer, Vector3, type Mesh } from "three";
 import * as RAPIER from "@dimforge/rapier3d";
 import RapierEngine from "../helpers/rapier";
 import { destroyEntityWithCollider } from "../utils";
@@ -11,6 +11,7 @@ export default function GameEngine(world: World): System {
   const lifeTimers = world.include("lifetime");
   const movables = world.include("transform", "rigidbody", "velocity");
   const healthEs = world.include("health");
+  const mixers = world.include("mixer");
   const engine = world.include("isEngine").entities[0];
   const playerQuery = world.include("isPlayer");
 
@@ -74,9 +75,13 @@ export default function GameEngine(world: World): System {
           );
 
           if (isPlayer && enemy) {
+            const enemyMachine = enemy.get<FiniteState>("machine");
             if (started) {
               // First Touch
+              enemyMachine.setActiveState("punch");
               damagePlayer(enemy.get<number>("damage"));
+            } else {
+              enemyMachine.setActiveState("walk");
             }
             collidingEnemy = started ? enemy : null;
           }
@@ -92,6 +97,8 @@ export default function GameEngine(world: World): System {
       if (collidingEnemy) {
         recievingDmgTimer += Time.delta;
         if (recievingDmgTimer > damageTickerRate) {
+          const enemyMachine = collidingEnemy.get<FiniteState>("machine");
+          enemyMachine?.setActiveState("punch");
           damagePlayer(collidingEnemy.get<number>("damage"));
           recievingDmgTimer = 0;
         }
@@ -112,6 +119,11 @@ export default function GameEngine(world: World): System {
         if (health.current < 0) {
           destroyEntityWithCollider(entity.id, world);
         }
+      });
+
+      mixers.entities.forEach((entity: Entity) => {
+        const mixer = entity.get<AnimationMixer>("mixer");
+        mixer.update(Time.delta);
       });
 
       // Movement sync with mesh and physics

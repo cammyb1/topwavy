@@ -1,24 +1,21 @@
 import type { World, Entity } from "@jael-ecs/core";
-import { Group, Vector3 } from "three";
+import { AnimationAction, AnimationMixer, Group, Vector3 } from "three";
 import { createDynamicBox } from "../utils";
 import { type LoadedModels } from "../game";
+import { FiniteState, type AnimationState } from "../helpers/state";
 
 export default function Player(world: World): Entity {
   const engine = world.include("isEngine").entities[0];
   const prefab = world.getPrefab("player");
-  if (!prefab) {
-    const gunPoint = new Vector3();
-    const model = engine.get<LoadedModels>("assets").Character_Soldier;
+  const model = engine.get<LoadedModels>("assets").Character_Soldier;
 
+  if (!prefab) {
     const indexFinger = model.scene.getObjectByProperty("name", "Index1R");
 
     // Hide weapons but leave knife model
     indexFinger?.children.forEach((child) => {
       if (child.isObject3D && child.name !== "Pistol") {
         child.visible = false;
-      }
-      if (child.name === "Pistol") {
-        child.getWorldPosition(gunPoint);
       }
     });
 
@@ -31,7 +28,6 @@ export default function Player(world: World): Entity {
 
     const playerSchema = {
       transform: model.scene,
-      gunPoint: gunPoint,
       velocity: new Vector3(),
       health: { current: 100 },
       isPlayer: true,
@@ -43,11 +39,85 @@ export default function Player(world: World): Entity {
   const playerId = world.instantiate("player") as number;
   const player = world.getEntity(playerId) as Entity;
   const phyInfo = createDynamicBox(new Vector3(1, 1, 1));
-  player.get<Group>("transform").position.set(0, 0.5, 0);
+  const transform: Group = player.get<Group>("transform");
+  transform.position.set(0, 0.5, 0);
   phyInfo.rb.lockRotations(true, true);
   phyInfo.rb.setEnabledRotations(false, true, false, true);
+
+  // Animation States
+  const defaultAnim = "idle";
+  const mixer = new AnimationMixer(transform);
+  const actions: { [k: string]: AnimationAction } = {};
+
+  model.animations.forEach((clip) => {
+    const action = mixer.clipAction(clip);
+    actions[clip.name] = action;
+    action.setEffectiveWeight(0);
+    action.play();
+  });
+
+  function onStateEnter(
+    name: keyof typeof actions,
+  ): (_prev: AnimationState | undefined, _machine: FiniteState) => void {
+    return (_prev: AnimationState | undefined, _machine: FiniteState) => {
+      if (_prev && _prev.action !== actions[name]) {
+        _prev.action.fadeOut(0.25);
+      }
+
+      actions[name].reset().setEffectiveWeight(1).fadeIn(0.25);
+    };
+  }
+
+  const IDLE_STATE: AnimationState = {
+    name: "idle",
+    action: actions.Idle,
+    enter: onStateEnter("Idle"),
+  };
+
+  const IDLE_SHOOT_STATE: AnimationState = {
+    name: "idle-shoot",
+    action: actions.Idle_Shoot,
+    enter: onStateEnter("Idle_Shoot"),
+  };
+
+  const WALK_STATE: AnimationState = {
+    name: "walk",
+    action: actions.Walk,
+    enter: onStateEnter("Walk"),
+  };
+
+  const WALK_SHOOT_STATE: AnimationState = {
+    name: "walk-shoot",
+    action: actions.Walk_Shoot,
+    enter: onStateEnter("Walk_Shoot"),
+  };
+
+  const RUN_STATE: AnimationState = {
+    name: "run",
+    action: actions.Run_Gun,
+    enter: onStateEnter("Run"),
+  };
+
+  const RUN_SHOOT_STATE: AnimationState = {
+    name: "run-shoot",
+    action: actions.Run_Shoot,
+    enter: onStateEnter("Run_Shoot"),
+  };
+
+  const machine = new FiniteState<AnimationState>();
+  machine.register(IDLE_STATE);
+  machine.register(IDLE_SHOOT_STATE);
+  machine.register(WALK_STATE);
+  machine.register(WALK_SHOOT_STATE);
+  machine.register(RUN_STATE);
+  machine.register(RUN_SHOOT_STATE);
+
+  machine.setActiveState(defaultAnim);
+
   player.add("rigidbody", phyInfo.rb);
   player.add("collider", phyInfo.col);
+  player.add("mixer", mixer);
+  player.add("machine", machine);
 
   return player;
 }

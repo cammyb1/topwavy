@@ -1,25 +1,32 @@
 import { EventRegistry } from "@jael-ecs/core";
+import type { AnimationAction } from "three";
 
 export interface State {
   name: string;
-  enter?: (_prev: State | undefined, machine: FiniteState) => void;
+  enter?: (_prev: this | undefined, machine: FiniteState) => void;
   exit?: () => void;
+}
+
+export interface AnimationState extends State {
+  action: AnimationAction;
 }
 
 export interface FiniteStateEvents {
   change: State | undefined;
 }
 
-export class FiniteState extends EventRegistry<FiniteStateEvents> {
-  states: State[];
-  active: State | undefined;
+export class FiniteState<
+  S extends State = State,
+> extends EventRegistry<FiniteStateEvents> {
+  states: S[];
+  active: S | undefined;
 
   constructor() {
     super();
     this.states = [];
   }
 
-  register(state: State) {
+  register(state: S) {
     if (!this.states.includes(state)) {
       this.states.push(state);
     }
@@ -38,6 +45,7 @@ export class FiniteState extends EventRegistry<FiniteStateEvents> {
   }
 
   setActiveState(name: string) {
+    if (name === this.active?.name) return;
     const state = this.states.find((s) => s.name === name);
     if (state) {
       const prev = this.active;
