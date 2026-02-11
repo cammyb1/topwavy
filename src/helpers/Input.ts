@@ -152,6 +152,7 @@ class Input extends EventRegistry<InputEvents> {
         existInConfig
       ) {
         keyConfig.states.up = true;
+        // Disable it on next frame
         let id = requestAnimationFrame(() => {
           keyConfig.states.up = false;
           cancelAnimationFrame(id);
@@ -171,6 +172,7 @@ class Input extends EventRegistry<InputEvents> {
         existInConfig
       ) {
         keyConfig.states.down = true;
+        // Disable it on next frame
         let id = requestAnimationFrame(() => {
           keyConfig.states.down = false;
           cancelAnimationFrame(id);

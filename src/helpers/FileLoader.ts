@@ -25,6 +25,8 @@ class HttpError extends Error {
  *
  * @augments Loader
  */
+
+// Borrowed from Three file loader because TData was not an option there LOL
 export default class FileLoader<TData = unknown> extends Loader<TData, string> {
   /**
    * Constructs a new file loader.

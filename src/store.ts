@@ -16,8 +16,8 @@ export const game = createStore<GameStore>((_set, _get) => {
   return {
     waveConfig: {
       current: 1,
-      maxWave: 1,
-      enemiesPerWave: 2,
+      maxWave: 5,
+      enemiesPerWave: 1,
       sleepTime: 0.5,
     },
     changeWaveConfig(data: Partial<WaveConfig>) {

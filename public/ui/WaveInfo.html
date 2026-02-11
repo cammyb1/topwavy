@@ -1,0 +1,47 @@
+<div class="wave">
+  <div>WAVE</div>
+  <span id="wave-n">1</span>
+</div>
+<style>
+  @keyframes slide-down {
+    from {
+      top: -20%;
+    }
+    to {
+      top: 0;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      top: 0;
+    }
+    to {
+      top: -20%;
+    }
+  }
+
+  .slide-down {
+    animation: slide-down 2s forwards;
+  }
+
+  .slide-up {
+    animation: slide-up 2s forwards;
+  }
+
+  .wave {
+    position: absolute;
+    display: flex;
+    background: black;
+    gap: 0.5rem;
+    padding: 1rem;
+    color: white;
+    width: 200px;
+    font-size: 25px;
+    top: -20%;
+    border-radius: 0 0 5px 5px;
+    left: 50%;
+    opacity: 0.5;
+    transform: translate(-50%);
+  }
+</style>

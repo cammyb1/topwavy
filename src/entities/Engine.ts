@@ -17,6 +17,8 @@ import { type LoadedUIElements } from "../game";
 import startScreenLogic from "../ui/startScreenLogic";
 import optionsScreenLogic from "../ui/optionsScreenLogic";
 
+export const showWaveEvent = new Event("show");
+
 export function Engine(state: GLState, world: World): Entity {
   const engineId = world.create();
   const proxy: Entity = world.getEntity(engineId) as Entity;
@@ -104,42 +106,68 @@ export function Engine(state: GLState, world: World): Entity {
   const IDLE_STATE: State = {
     name: "idle",
     enter() {
-      uiContainer.innerHTML =
-        proxy.get<LoadedUIElements>("screens").StartScreen;
+      const screens = proxy.get<LoadedUIElements>("screens");
+      uiContainer.appendChild(screens.StartScreen);
       startScreenLogic(proxy);
+    },
+    exit() {
+      const screens = proxy.get<LoadedUIElements>("screens");
+      uiContainer.removeChild(screens.StartScreen);
     },
   };
   const OPTIONS_STATE: State = {
     name: "options",
     enter() {
-      uiContainer.innerHTML =
-        proxy.get<LoadedUIElements>("screens").OptionsScreen;
+      const screens = proxy.get<LoadedUIElements>("screens");
+      uiContainer.appendChild(screens.OptionsScreen);
       optionsScreenLogic(proxy);
+    },
+    exit() {
+      const screens = proxy.get<LoadedUIElements>("screens");
+      uiContainer.removeChild(screens.OptionsScreen);
     },
   };
   const PAUSED_STATE: State = {
     name: "paused",
     enter() {
-      uiContainer.innerHTML =
-        proxy.get<LoadedUIElements>("screens").PauseScreen;
+      const screens = proxy.get<LoadedUIElements>("screens");
+      uiContainer.appendChild(screens.OptionsScreen);
+    },
+    exit() {
+      const screens = proxy.get<LoadedUIElements>("screens");
+      uiContainer.removeChild(screens.PauseScreen);
     },
   };
   const START_STATE: State = {
     name: "start",
-    enter() {
+    enter(_prev) {
       uiContainer.innerHTML = "";
+
+      if (_prev && _prev.name === "idle") {
+        const info = proxy.get<LoadedUIElements>("screens").WaveInfo;
+        uiContainer.appendChild(info);
+        info.dispatchEvent(showWaveEvent);
+      }
 
       // Enter/restart game
       state.camera.position.set(0, 50, 20);
       state.camera.lookAt(zeroVector);
       Player(world);
     },
+    exit() {
+      const info = proxy.get<LoadedUIElements>("screens").WaveInfo;
+      uiContainer.removeChild(info);
+    },
   };
   const FINISHED_STATE: State = {
     name: "finish",
     enter() {
-      uiContainer.innerHTML =
-        proxy.get<LoadedUIElements>("screens").FinishScreen;
+      const screens = proxy.get<LoadedUIElements>("screens");
+      uiContainer.appendChild(screens.FinishScreen);
+    },
+    exit() {
+      const screens = proxy.get<LoadedUIElements>("screens");
+      uiContainer.removeChild(screens.FinishScreen);
     },
   };
 

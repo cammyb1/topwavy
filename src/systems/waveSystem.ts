@@ -5,10 +5,14 @@ import { FiniteState, type State } from "../helpers/state";
 import { destroyEntityWithCollider, PRIORITY_LIST } from "../utils";
 import { game, type WaveConfig } from "../store";
 import { RigidBody } from "@dimforge/rapier3d";
+import { type LoadedUIElements } from "../game";
+import { showWaveEvent } from "../entities/Engine";
 
 export default function WaveSystem(world: World): System {
   const engine = world.include("isEngine").entities[0];
   const playerQuery = world.include("isPlayer");
+
+  const screens = engine.get<LoadedUIElements>("screens");
 
   const enemyPool: number[] = [];
   const spawnRate = 1;
@@ -69,8 +73,12 @@ export default function WaveSystem(world: World): System {
 
     if (spawnedEnemies >= maxEnemies && enemyPool.length <= 0) {
       spawnedEnemies = 0;
+      const waveContainer = document.getElementById("wave-n");
       waveConfig.current += 1;
-      console.log("Current Wave: ", waveConfig.current);
+      if (waveContainer) {
+        waveContainer.innerHTML = waveConfig.current.toString();
+        screens.WaveInfo.dispatchEvent(showWaveEvent);
+      }
       maxEnemies = waveConfig.enemiesPerWave * waveConfig.current;
     }
   };
