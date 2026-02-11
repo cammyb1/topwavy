@@ -1,9 +1,10 @@
-import { Time, World, type System } from "@jael-ecs/core";
+import { Time, World, type Entity, type System } from "@jael-ecs/core";
 import Enemy from "../entities/Enemy";
 import { Vector3 } from "three";
 import { FiniteState, type State } from "../helpers/state";
-import { destroyEntityWithCollider } from "../utils";
+import { destroyEntityWithCollider, PRIORITY_LIST } from "../utils";
 import { game, type WaveConfig } from "../store";
+import { RigidBody } from "@dimforge/rapier3d";
 
 export default function WaveSystem(world: World): System {
   const engine = world.include("isEngine").entities[0];
@@ -21,6 +22,18 @@ export default function WaveSystem(world: World): System {
 
   function createEnemy(pos: Vector3) {
     const enemy = Enemy(world, pos);
+
+    const rb = enemy.get<RigidBody>("rigidbody");
+    rb.userData = {
+      onCollisionStart: (e: Entity) => {
+        if (e.get("isBullet")) {
+           const damage = e.get<number>("damage");
+           enemy.get("health").current -= damage;
+           destroyEntityWithCollider(e.id, world);
+        }
+      },
+    };
+
     enemyPool.push(enemy.id);
     spawnedEnemies += 1;
   }
@@ -78,7 +91,7 @@ export default function WaveSystem(world: World): System {
   enemyQuery.on("removed", onActiveWaveRemove);
 
   return {
-    priority: 2,
+    priority: PRIORITY_LIST.REST,
     update() {
       if (playerQuery.size() > 0) {
         if (waveConfig.current < waveConfig.maxWave) {

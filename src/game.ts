@@ -15,6 +15,7 @@ import {
 import Player from "./entities/Player";
 import { DefaultLoadingManager } from "three";
 import FileLoader from "./helpers/FileLoader";
+import CollisionSystem from "./systems/collisionSystem";
 
 const gltfLoader = new GLTFLoader();
 const fileLoader = new FileLoader<Document>();
@@ -115,6 +116,7 @@ export function mountExperience(state: GLState) {
     });
 
     world.addSystem(GameEngine(world));
+    world.addSystem(CollisionSystem(world));
     world.addSystem(PlayerController(world));
     world.addSystem(EnemyAI(world));
     world.addSystem(WaveSystem(world));

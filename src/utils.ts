@@ -8,15 +8,21 @@ import type { World } from "@jael-ecs/core";
 import RapierEngine from "./helpers/rapier";
 import type { Vector2 } from "three";
 
+export const PRIORITY_LIST = Object.freeze({
+  RENDER: 0,
+  PHYSICS: 1,
+  REST: 2,
+});
+
 type ReturnedPhy = {
-  rb: RigidBody;
+  rb: RigidBody & { onCollisionStart: Function; onCollisionEnd: Function };
   col: Collider;
 };
 
 export function createDynamicBox(size: Vector2): ReturnedPhy {
   const rb = RapierEngine.world.createRigidBody(
     RapierEngine.rigidbody.dynamic(),
-  );
+  ) as RigidBody & { onCollisionStart: Function; onCollisionEnd: Function };
   const col = RapierEngine.world.createCollider(
     RapierEngine.collider
       .capsule(size.y, size.x)

@@ -1,6 +1,7 @@
 import { RigidBody } from "@dimforge/rapier3d";
 import { Time, type System, type World, type Entity } from "@jael-ecs/core";
 import { Vector3 } from "three";
+import { PRIORITY_LIST } from "../utils";
 
 export default function EnemyAI(world: World): System {
   const targetDir = new Vector3();
@@ -10,7 +11,7 @@ export default function EnemyAI(world: World): System {
   const query = world.include("isEnemy");
 
   return {
-    priority: 2,
+    priority: PRIORITY_LIST.REST,
     update() {
       query.entities.forEach((enemy: Entity) => {
         const mesh = enemy.get("transform");
@@ -31,8 +32,6 @@ export default function EnemyAI(world: World): System {
             targetDir.multiplyScalar(speed);
             targetDir.y = rb.linvel().y;
             velocity.copy(targetDir);
-
-            console.log(velocity);
           } else {
             machine.setActiveState("idle");
             velocity.set(0, 0, 0);

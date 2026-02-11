@@ -1,10 +1,12 @@
-import { Time, type System, type World } from "@jael-ecs/core";
+import { Time, type Entity, type System, type World } from "@jael-ecs/core";
 import { Group, Plane, Raycaster, Vector3 } from "three";
 import type { GLState } from "../mount3";
 import Bullet from "../entities/Bullet";
 import { Input } from "../helpers/Input";
 import { FiniteState } from "../helpers/state";
 import { RigidBody } from "@dimforge/rapier3d";
+import { destroyEntityWithCollider, PRIORITY_LIST } from "../utils";
+import type { RBUserdataEvents } from "./collisionSystem";
 
 const zeroVector = new Vector3();
 const lookAtVector = new Vector3();
@@ -34,6 +36,10 @@ export default function PlayerController(world: World): System {
   let shootingStarted = 0;
   let multiplier = 1.5;
 
+  let recievingDmgTimer: number = 0;
+  let collidingEntity: Entity | undefined;
+  const damageTickerRate = 0.5;
+
   Input.register("forward", ["KeyW", "ArrowUp"]);
   Input.register("backward", ["KeyS", "ArrowDown"]);
   Input.register("left", ["KeyA", "ArrowLeft"]);
@@ -56,6 +62,13 @@ export default function PlayerController(world: World): System {
     shooting = false;
   });
 
+  function damagePlayer(dmg: number) {
+    if (!playerQuery.entities[0]) return;
+    const health = playerQuery.entities[0].get("health");
+    health.current -= dmg;
+    console.log("Damagin player with ", dmg, " current Health: ", health);
+  }
+
   function shootBullet() {
     // First Bullet
     const player = playerQuery.entities[0];
@@ -70,14 +83,51 @@ export default function PlayerController(world: World): System {
       const velocity = worldDir.clone().multiplyScalar(bulletSpeed);
       const bulletE = Bullet(world, startPos);
       const vel = bulletE.get<Vector3>("velocity");
-      const rb = bulletE.get<RigidBody>("rigidbody");
+      const rb = bulletE.get<RigidBody & RBUserdataEvents>("rigidbody");
+
+      rb.userData = {
+        onCollisionStart: (e: Entity) => {
+          if (e.get("isEnemy")) {
+            const damage = bulletE.get<number>("damage");
+            e.get("health").current -= damage;
+            destroyEntityWithCollider(bulletE.id, world);
+          }
+        },
+      };
+
       vel.y = rb.linvel().y;
       vel.copy(velocity);
     }
   }
 
+  playerQuery.on("added", (id: number) => {
+    const player = world.getEntity(id) as Entity;
+    const rb = player.get("rigidbody");
+
+    if (!rb) return;
+
+    rb.userData = {
+      onCollisionStart: (e: Entity) => {
+        if (e.get("isEnemy")) {
+          const enemyMachine = e.get<FiniteState>("machine");
+          enemyMachine.setActiveState("punch");
+          damagePlayer(e.get<number>("damage"));
+          collidingEntity = e;
+        }
+      },
+      onCollisionEnd: (e: Entity) => {
+        if (e.get("isEnemy")) {
+          const enemyMachine = e.get<FiniteState>("machine");
+          enemyMachine.setActiveState("walk");
+          recievingDmgTimer = 0;
+          collidingEntity = undefined;
+        }
+      },
+    };
+  });
+
   return {
-    priority: 2,
+    priority: PRIORITY_LIST.REST,
     update() {
       const state = engine.get<GLState>("gl");
       const player = playerQuery.entities[0];
@@ -115,6 +165,14 @@ export default function PlayerController(world: World): System {
         ) {
           shootingStarted = Time.elapsed;
           shootBullet();
+        }
+
+        if (collidingEntity) {
+          recievingDmgTimer += Time.delta;
+          if (recievingDmgTimer > damageTickerRate) {
+            damagePlayer(collidingEntity.get("damage"));
+            recievingDmgTimer = 0;
+          }
         }
 
         const isRunning = Input.isPressed("run");

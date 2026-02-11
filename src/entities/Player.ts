@@ -43,7 +43,7 @@ export default function Player(world: World): Entity {
   }
 
   const playerId = world.instantiate("player") as number;
-  const player = world.getEntity(playerId) as Entity;
+  const player: Entity = world.getEntity(playerId) as Entity;
   const phyInfo = createDynamicBox(new Vector2(0.5, 0.5));
   const transform: Group = player.get<Group>("transform");
   transform.position.set(0, 0, 0);
