@@ -6,7 +6,7 @@ import GameEngine from "./systems/engineSystem";
 import EnemyAI from "./systems/enemySystem";
 import PlayerController from "./systems/playerController";
 import WaveSystem from "./systems/waveSystem";
-import { FiniteState, type State } from "./helpers/state";
+import { FiniteState } from "./helpers/state";
 import {
   GLTFLoader,
   SkeletonUtils,
@@ -15,8 +15,6 @@ import {
 import { DefaultLoadingManager } from "three";
 import FileLoader from "./helpers/FileLoader";
 import CollisionSystem from "./systems/collisionSystem";
-import startScreenLogic from "./ui/startScreenLogic";
-import optionsScreenLogic from "./ui/optionsScreenLogic";
 import { isGameActive } from "./utils";
 
 const gltfLoader = new GLTFLoader();
