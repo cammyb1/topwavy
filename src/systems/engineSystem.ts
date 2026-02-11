@@ -53,7 +53,7 @@ export default function GameEngine(world: World): System {
       // Health
       healthEs.entities.forEach((entity: Entity) => {
         const health = entity.get("health");
-        if (health.current < 0) {
+        if (health.current <= 0) {
           destroyEntityWithCollider(entity.id, world);
         }
       });

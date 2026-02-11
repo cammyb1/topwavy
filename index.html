@@ -38,14 +38,64 @@
         display: flex;
         width: 100%;
         height: 100%;
-        opacity: 0;
         align-items: center;
         justify-content: center;
         color: white;
         font-size: 50px;
         font-family: "calibri";
         text-transform: uppercase;
-        animation: easein 0.5s forwards;
+      }
+      .menu {
+        width: fit-content;
+        background: rgb(37, 37, 37);
+        border-radius: 10px;
+        overflow: hidden;
+        min-height: 350px;
+        min-width: 350px;
+        font-family: "Courier New", Courier, monospace;
+
+        .header {
+          padding: 1rem;
+          color: rgb(252, 255, 212);
+          background: rgb(255, 196, 0);
+          text-align: center;
+        }
+
+        .content {
+          padding: 1rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.5rem;
+          font-size: 20px;
+
+          form {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            > div {
+              display: flex;
+              justify-content: space-between;
+            }
+          }
+
+          button {
+            background: transparent;
+            color: rgb(252, 255, 212);
+            font-size: 2rem;
+            border-style: none;
+            font-family: "Courier New", Courier, monospace;
+            padding: 1rem;
+            transition: font-size 0.5s;
+            cursor: pointer;
+          }
+          button:hover {
+            text-shadow: 2.5px 2.5px 2px rgb(0, 0, 0);
+            font-size: 2.1rem;
+          }
+          button:active {
+            color: rgb(255, 196, 0);
+          }
+        }
       }
     </style>
   </head>

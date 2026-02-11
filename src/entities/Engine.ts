@@ -13,6 +13,9 @@ import type { Entity } from "@jael-ecs/core";
 import { FiniteState, type State } from "../helpers/state";
 import Player from "./Player";
 import { Input } from "../helpers/Input";
+import { type LoadedUIElements } from "../game";
+import startScreenLogic from "../ui/startScreenLogic";
+import optionsScreenLogic from "../ui/optionsScreenLogic";
 
 export function Engine(state: GLState, world: World): Entity {
   const engineId = world.create();
@@ -86,6 +89,8 @@ export function Engine(state: GLState, world: World): Entity {
   state.scene.add(directional);
   state.scene.add(RapierEngine.debugMesh);
 
+  const uiContainer: HTMLElement = document.getElementById("ui") as HTMLElement;
+
   // Register inputs
   Input.registerMultiple({
     forward: { keys: ["KeyW", "ArrowUp"] },
@@ -98,29 +103,52 @@ export function Engine(state: GLState, world: World): Entity {
   // Basic finite state machine
   const IDLE_STATE: State = {
     name: "idle",
-    enter(_prev, host) {
-      // Restart game
-      if (_prev?.name === "finish") {
-        host.setActiveState("start");
-        // Reset camera view
-        state.camera.position.set(0, 50, 20);
-        state.camera.lookAt(zeroVector);
-        Player(world);
-      }
+    enter() {
+      uiContainer.innerHTML =
+        proxy.get<LoadedUIElements>("screens").StartScreen;
+      startScreenLogic(proxy);
     },
-    exit() {},
   };
-  const PAUSED_STATE: State = { name: "paused" };
-  const START_STATE: State = { name: "start" };
-  const FINISHED_STATE: State = { name: "finish" };
+  const OPTIONS_STATE: State = {
+    name: "options",
+    enter() {
+      uiContainer.innerHTML =
+        proxy.get<LoadedUIElements>("screens").OptionsScreen;
+      optionsScreenLogic(proxy);
+    },
+  };
+  const PAUSED_STATE: State = {
+    name: "paused",
+    enter() {
+      uiContainer.innerHTML =
+        proxy.get<LoadedUIElements>("screens").PauseScreen;
+    },
+  };
+  const START_STATE: State = {
+    name: "start",
+    enter() {
+      uiContainer.innerHTML = "";
+
+      // Enter/restart game
+      state.camera.position.set(0, 50, 20);
+      state.camera.lookAt(zeroVector);
+      Player(world);
+    },
+  };
+  const FINISHED_STATE: State = {
+    name: "finish",
+    enter() {
+      uiContainer.innerHTML =
+        proxy.get<LoadedUIElements>("screens").FinishScreen;
+    },
+  };
 
   const stateMachine = new FiniteState();
   stateMachine.register(IDLE_STATE);
+  stateMachine.register(OPTIONS_STATE);
   stateMachine.register(PAUSED_STATE);
   stateMachine.register(START_STATE);
   stateMachine.register(FINISHED_STATE);
-
-  stateMachine.setActiveState("idle");
 
   proxy.add("isEngine", true);
   proxy.add("gl", state);

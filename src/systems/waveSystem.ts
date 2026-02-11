@@ -18,7 +18,14 @@ export default function WaveSystem(world: World): System {
   let maxEnemies = 0;
   let spawnTimer = 0;
 
-  const waveConfig: WaveConfig = game.getState().waveConfig;
+  let waveConfig: WaveConfig = game.getState().waveConfig;
+  maxEnemies = waveConfig.enemiesPerWave;
+
+  game.subscribe((state) => {
+    waveConfig = state.waveConfig;
+
+    maxEnemies = waveConfig.enemiesPerWave;
+  });
 
   function createEnemy(pos: Vector3) {
     const enemy = Enemy(world, pos);
@@ -52,9 +59,6 @@ export default function WaveSystem(world: World): System {
 
     spawnTimer += Time.delta;
   }
-
-  // First wave enemies
-  maxEnemies = waveConfig.enemiesPerWave;
 
   const stateMachine = engine.get<FiniteState>("state");
   const onActiveWaveRemove = (id: number) => {
@@ -97,7 +101,7 @@ export default function WaveSystem(world: World): System {
     priority: PRIORITY_LIST.REST,
     update() {
       if (playerQuery.size() > 0) {
-        if (waveConfig.current < waveConfig.maxWave) {
+        if (waveConfig.current <= waveConfig.maxWave) {
           spawnNextWave();
         } else {
           engine.get("state").setActiveState("finish");

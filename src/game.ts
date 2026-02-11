@@ -12,10 +12,12 @@ import {
   SkeletonUtils,
   type GLTF,
 } from "three/examples/jsm/Addons.js";
-import Player from "./entities/Player";
 import { DefaultLoadingManager } from "three";
 import FileLoader from "./helpers/FileLoader";
 import CollisionSystem from "./systems/collisionSystem";
+import startScreenLogic from "./ui/startScreenLogic";
+import optionsScreenLogic from "./ui/optionsScreenLogic";
+import { isGameActive } from "./utils";
 
 const gltfLoader = new GLTFLoader();
 const fileLoader = new FileLoader<Document>();
@@ -48,7 +50,12 @@ async function preloadModels(): Promise<LoadedModels> {
 }
 
 async function preloadUI(): Promise<LoadedUIElements> {
-  const screens = ["StartScreen", "PauseScreen", "FinishScreen"];
+  const screens = [
+    "StartScreen",
+    "PauseScreen",
+    "FinishScreen",
+    "OptionsScreen",
+  ];
   let loaded_screens: LoadedUIElements = {};
 
   for (let ui of screens) {
@@ -72,7 +79,6 @@ export function mountExperience(state: GLState) {
   world.prefabManager.addCloner("skeletal", (v) => SkeletonUtils.clone(v));
 
   const engine = Engine(state, world);
-  const uiContainer: HTMLElement = document.getElementById("ui") as HTMLElement;
   const loader: HTMLElement = document.getElementById("loader") as HTMLElement;
 
   const promise = Promise.all([preloadModels(), preloadUI()]);
@@ -88,32 +94,7 @@ export function mountExperience(state: GLState) {
     engine.add("screens", screens);
     const machine = engine.get<FiniteState>("state");
 
-    uiContainer.innerHTML = screens.StartScreen;
-
-    const playButton: HTMLElement | null =
-      document.getElementById("playAction");
-
-    if (playButton) {
-      playButton.onclick = () => {
-        machine.setActiveState("start");
-        Player(world);
-      };
-    }
-
-    machine.on("change", (prev: State | undefined) => {
-      if (prev) {
-        if (["idle", "paused"].includes(prev.name)) {
-          uiContainer.innerHTML = "";
-        }
-        if (prev.name === "start") {
-          if (machine.active?.name === "paused") {
-            uiContainer.innerHTML = screens.PauseScreen;
-          } else {
-            uiContainer.innerHTML = screens.FinishScreen;
-          }
-        }
-      }
-    });
+    machine.setActiveState("idle");
 
     world.addSystem(GameEngine(world));
     world.addSystem(CollisionSystem(world));
@@ -122,7 +103,7 @@ export function mountExperience(state: GLState) {
     world.addSystem(WaveSystem(world));
 
     Time.on("update", () => {
-      if (engine.get<FiniteState>("state").active?.name !== "start") return;
+      if (!isGameActive(engine)) return;
       RapierEngine.step();
       world.update();
     });

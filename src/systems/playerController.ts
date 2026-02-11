@@ -5,7 +5,11 @@ import Bullet from "../entities/Bullet";
 import { Input } from "../helpers/Input";
 import { FiniteState } from "../helpers/state";
 import { RigidBody } from "@dimforge/rapier3d";
-import { destroyEntityWithCollider, PRIORITY_LIST } from "../utils";
+import {
+  destroyEntityWithCollider,
+  isGameActive,
+  PRIORITY_LIST,
+} from "../utils";
 import type { RBUserdataEvents } from "./collisionSystem";
 
 const zeroVector = new Vector3();
@@ -30,23 +34,23 @@ export default function PlayerController(world: World): System {
   const speed = 1.5;
   const bulletSpeed = 6;
   const shootingRate = 0.2;
+  const damageTickerRate = 0.5;
+  const bulletRechargeTime = 1.5;
   const bulletOffset = new Vector3(0, 0, -0.2);
+  const bulletMag = 20;
 
   let shooting = false;
+  let recharging = false;
   let shootingStarted = 0;
   let multiplier = 1.5;
+  let activeBullets = 0;
 
-  let recievingDmgTimer: number = 0;
+  let rechargingTimer = 0;
+  let recievingDmgTimer = 0;
   let collidingEntity: Entity | undefined;
-  const damageTickerRate = 0.5;
 
   Input.pointer.on("down", () => {
-    if (
-      playerQuery.size() <= 0 ||
-      engine.get<FiniteState>("state").active?.name !== "start"
-    )
-      return;
-    shootingStarted = Time.elapsed;
+    if (playerQuery.size() <= 0 || !isGameActive(engine)) return;
     shooting = true;
 
     shootBullet();
@@ -59,13 +63,14 @@ export default function PlayerController(world: World): System {
   function damagePlayer(dmg: number) {
     if (!playerQuery.entities[0]) return;
     const health = playerQuery.entities[0].get("health");
-    const machine = playerQuery.entities[0].get("machine")
+    const machine = playerQuery.entities[0].get("machine");
     health.current -= dmg;
-    machine.setActiveState('hit')
+    machine.setActiveState("hit");
     console.log("Damagin player with ", dmg, " current Health: ", health);
   }
 
   function shootBullet() {
+    if (activeBullets >= bulletMag) return;
     // First Bullet
     const player = playerQuery.entities[0];
     const transform = player.get<Group>("transform");
@@ -93,6 +98,7 @@ export default function PlayerController(world: World): System {
 
       vel.y = rb.linvel().y;
       vel.copy(velocity);
+      activeBullets += 1;
     }
   }
 
@@ -155,12 +161,25 @@ export default function PlayerController(world: World): System {
           direction.x = 1;
         }
 
-        if (
-          shooting &&
-          Math.abs(shootingStarted - Time.elapsed) > shootingRate
-        ) {
-          shootingStarted = Time.elapsed;
-          shootBullet();
+        if (activeBullets >= bulletMag) {
+          recharging = true;
+          rechargingTimer += Time.delta;
+          if (rechargingTimer > bulletRechargeTime) {
+            activeBullets = 0;
+            recharging = false;
+            shootingStarted = 0;
+            rechargingTimer = 0;
+          }
+        }
+
+        let activeShooting = shooting && !recharging;
+
+        if (activeShooting) {
+          shootingStarted += Time.delta;
+          if (shootingStarted > shootingRate) {
+            shootBullet();
+            shootingStarted = 0;
+          }
         }
 
         if (collidingEntity) {
@@ -174,19 +193,19 @@ export default function PlayerController(world: World): System {
         const isRunning = Input.isPressed("run");
 
         if (direction.equals(zeroVector)) {
-          if (shooting) {
+          if (activeShooting) {
             machine.setActiveState("idle-shoot");
           } else {
             machine.setActiveState("idle");
           }
         } else if (!isRunning) {
-          if (shooting) {
+          if (activeShooting) {
             machine.setActiveState("walk-shoot");
           } else {
             machine.setActiveState("walk");
           }
         } else {
-          if (shooting) {
+          if (activeShooting) {
             machine.setActiveState("run-shoot");
           } else {
             machine.setActiveState("run");

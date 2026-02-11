@@ -4,9 +4,10 @@ import {
   type Collider,
   type RigidBody,
 } from "@dimforge/rapier3d";
-import type { World } from "@jael-ecs/core";
+import type { Entity, World } from "@jael-ecs/core";
 import RapierEngine from "./helpers/rapier";
 import type { Vector2 } from "three";
+import { FiniteState } from "./helpers/state";
 
 export const PRIORITY_LIST = Object.freeze({
   RENDER: 0,
@@ -18,6 +19,16 @@ type ReturnedPhy = {
   rb: RigidBody & { onCollisionStart: Function; onCollisionEnd: Function };
   col: Collider;
 };
+
+export function isGameActive(engine: Entity): boolean {
+  if (!engine.get("isEngine")) return false;
+  const machine = engine.get<FiniteState>("state");
+
+  return Boolean(
+    machine.active?.name &&
+    !["idle", "paused", "finish"].includes(machine.active?.name),
+  );
+}
 
 export function createDynamicBox(size: Vector2): ReturnedPhy {
   const rb = RapierEngine.world.createRigidBody(
