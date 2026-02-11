@@ -73,11 +73,15 @@ class Input extends EventRegistry<InputEvents> {
     });
   }
 
-  register(
-    name: string,
-    keys: string[],
-    config: { mandatory: boolean } = { mandatory: false },
-  ) {
+  registerMultiple(keyMap: {
+    [k: string]: { keys: string[]; config?: Partial<InputConfig> };
+  }) {
+    for (let keyname in keyMap) {
+      this.register(keyname, keyMap[keyname].keys, keyMap[keyname].config);
+    }
+  }
+
+  register(name: string, keys: string[], config?: Partial<InputConfig>) {
     // add or override
     this.keys.set(name, {
       values: keys.reduce<Record<string, boolean>>((acc, k: string) => {
@@ -89,7 +93,7 @@ class Input extends EventRegistry<InputEvents> {
         up: false,
         pressed: false,
       },
-      mandatory: config.mandatory,
+      mandatory: config?.mandatory || false,
     });
   }
 

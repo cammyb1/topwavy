@@ -25,7 +25,7 @@ export default function PlayerController(world: World): System {
   const worldDir = new Vector3();
   const cameraOffset = new Vector3(0, 50, 20);
   const cameraLerpVector = new Vector3();
-  const cameraFollowSpeed = 5;
+  const cameraFollowSpeed = 0.5;
 
   const speed = 1.5;
   const bulletSpeed = 6;
@@ -39,12 +39,6 @@ export default function PlayerController(world: World): System {
   let recievingDmgTimer: number = 0;
   let collidingEntity: Entity | undefined;
   const damageTickerRate = 0.5;
-
-  Input.register("forward", ["KeyW", "ArrowUp"]);
-  Input.register("backward", ["KeyS", "ArrowDown"]);
-  Input.register("left", ["KeyA", "ArrowLeft"]);
-  Input.register("right", ["KeyD", "ArrowRight"]);
-  Input.register("run", ["ShiftLeft"]);
 
   Input.pointer.on("down", () => {
     if (
@@ -65,7 +59,9 @@ export default function PlayerController(world: World): System {
   function damagePlayer(dmg: number) {
     if (!playerQuery.entities[0]) return;
     const health = playerQuery.entities[0].get("health");
+    const machine = playerQuery.entities[0].get("machine")
     health.current -= dmg;
+    machine.setActiveState('hit')
     console.log("Damagin player with ", dmg, " current Health: ", health);
   }
 
@@ -129,10 +125,10 @@ export default function PlayerController(world: World): System {
   return {
     priority: PRIORITY_LIST.REST,
     update() {
-      const state = engine.get<GLState>("gl");
+      const gl = engine.get<GLState>("gl");
       const player = playerQuery.entities[0];
 
-      if (player && state) {
+      if (player && gl) {
         const transform = player.get<Group>("transform");
         const velocity = player.get<Vector3>("velocity");
         const machine = player.get<FiniteState>("machine");
@@ -140,7 +136,7 @@ export default function PlayerController(world: World): System {
 
         cameraLerpVector.copy(transform.position).add(cameraOffset);
 
-        state.camera.position.lerp(
+        gl.camera.position.lerp(
           cameraLerpVector,
           Time.delta * cameraFollowSpeed,
         );
@@ -208,7 +204,7 @@ export default function PlayerController(world: World): System {
         velocity.y = rb.linvel().y;
         direction.set(0, 0, 0);
 
-        caster.setFromCamera(Input.pointer.position, state.camera);
+        caster.setFromCamera(Input.pointer.position, gl.camera);
         caster.ray.intersectPlane(plane, hit);
         const distanceToHit = hit.distanceTo(transform.position);
 

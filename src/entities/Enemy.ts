@@ -95,6 +95,12 @@ export default function Enemy(world: World, startingPos?: Vector3): Entity {
     enter: onStateEnter("Walk_Shoot"),
   };
 
+  const HIT_STATE: AnimationState = {
+    name: "hit",
+    action: actions.HitReact,
+    enter: onStateEnter("HitReact"),
+  };
+
   const WALK_STATE: AnimationState = {
     name: "walk",
     action: actions.Walk,
@@ -110,6 +116,7 @@ export default function Enemy(world: World, startingPos?: Vector3): Entity {
   const machine = new FiniteState<AnimationState>();
   machine.register(IDLE_STATE);
   machine.register(PUNCH_STATE);
+  machine.register(HIT_STATE);
   machine.register(WALK_STATE);
   machine.register(RUN_STATE);
 

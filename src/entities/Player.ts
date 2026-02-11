@@ -12,8 +12,8 @@ import { FiniteState, type AnimationState } from "../helpers/state";
 
 export default function Player(world: World): Entity {
   const engine = world.include("isEngine").entities[0];
-  const prefab = world.getPrefab("player");
   const model = engine.get<LoadedModels>("assets").Character_Soldier;
+  const prefab = world.getPrefab("player");
 
   if (!prefab) {
     const indexFinger = model.scene.getObjectByProperty("name", "Index1R");
@@ -88,6 +88,12 @@ export default function Player(world: World): Entity {
     enter: onStateEnter("Idle_Shoot"),
   };
 
+  const HIT_STATE: AnimationState = {
+    name: "hit",
+    action: actions.HitReact,
+    enter: onStateEnter("HitReact"),
+  };
+
   const WALK_STATE: AnimationState = {
     name: "walk",
     action: actions.Walk,
@@ -115,6 +121,7 @@ export default function Player(world: World): Entity {
   const machine = new FiniteState<AnimationState>();
   machine.register(IDLE_STATE);
   machine.register(IDLE_SHOOT_STATE);
+  machine.register(HIT_STATE);
   machine.register(WALK_STATE);
   machine.register(WALK_SHOOT_STATE);
   machine.register(RUN_STATE);

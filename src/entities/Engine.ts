@@ -12,6 +12,7 @@ import RapierEngine from "../helpers/rapier";
 import type { Entity } from "@jael-ecs/core";
 import { FiniteState, type State } from "../helpers/state";
 import Player from "./Player";
+import { Input } from "../helpers/Input";
 
 export function Engine(state: GLState, world: World): Entity {
   const engineId = world.create();
@@ -84,6 +85,15 @@ export function Engine(state: GLState, world: World): Entity {
   state.scene.add(ambient);
   state.scene.add(directional);
   state.scene.add(RapierEngine.debugMesh);
+
+  // Register inputs
+  Input.registerMultiple({
+    forward: { keys: ["KeyW", "ArrowUp"] },
+    backward: { keys: ["KeyS", "ArrowDown"] },
+    left: { keys: ["KeyA", "ArrowLeft"] },
+    right: { keys: ["KeyD", "ArrowRight"] },
+    run: { keys: ["ShiftLeft"] },
+  });
 
   // Basic finite state machine
   const IDLE_STATE: State = {

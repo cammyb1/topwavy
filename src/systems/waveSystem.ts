@@ -24,12 +24,15 @@ export default function WaveSystem(world: World): System {
     const enemy = Enemy(world, pos);
 
     const rb = enemy.get<RigidBody>("rigidbody");
+    const machine = enemy.get("machine");
+
     rb.userData = {
       onCollisionStart: (e: Entity) => {
         if (e.get("isBullet")) {
-           const damage = e.get<number>("damage");
-           enemy.get("health").current -= damage;
-           destroyEntityWithCollider(e.id, world);
+          const damage = e.get<number>("damage");
+          enemy.get("health").current -= damage;
+          destroyEntityWithCollider(e.id, world);
+          machine.setActiveState("hit");
         }
       },
     };

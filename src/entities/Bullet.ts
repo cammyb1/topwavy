@@ -10,14 +10,13 @@ import RapierEngine from "../helpers/rapier";
 import * as RAPIER from "@dimforge/rapier3d";
 
 const scale = new Vector3(1, 1, 1);
+const sphereGeometry = new SphereGeometry(1, 32, 32);
+const bulletMaterial = new MeshLambertMaterial({ color: "yellow" });
 
 export default function Bullet(world: World, startPos: Vector3Like): Entity {
   const prefab = world.getPrefab("bullet");
 
   if (!prefab) {
-    const sphereGeometry = new SphereGeometry(1, 32, 32);
-    const bulletMaterial = new MeshLambertMaterial({ color: "yellow" });
-
     const mesh = new Mesh(sphereGeometry, bulletMaterial);
 
     // Physics world stuff
@@ -29,7 +28,7 @@ export default function Bullet(world: World, startPos: Vector3Like): Entity {
     const bulletSchema = {
       transform: mesh,
       isBullet: true,
-      lifetime: { current: 1, decreaseSpeed: 2.5 },
+      lifetime: { current: 1, decreaseSpeed: 1.5 },
       velocity: new Vector3(),
       damage: 10,
     };
