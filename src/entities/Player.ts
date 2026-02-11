@@ -1,5 +1,11 @@
 import type { World, Entity } from "@jael-ecs/core";
-import { AnimationAction, AnimationMixer, Group, Vector3 } from "three";
+import {
+  AnimationAction,
+  AnimationMixer,
+  Group,
+  Vector3,
+  Vector2,
+} from "three";
 import { createDynamicBox } from "../utils";
 import { type LoadedModels } from "../game";
 import { FiniteState, type AnimationState } from "../helpers/state";
@@ -38,11 +44,13 @@ export default function Player(world: World): Entity {
 
   const playerId = world.instantiate("player") as number;
   const player = world.getEntity(playerId) as Entity;
-  const phyInfo = createDynamicBox(new Vector3(1, 1, 1));
+  const phyInfo = createDynamicBox(new Vector2(0.5, 0.5));
   const transform: Group = player.get<Group>("transform");
-  transform.position.set(0, 0.5, 0);
+  transform.position.set(0, 0, 0);
+  phyInfo.rb.setTranslation(transform.position, true);
   phyInfo.rb.lockRotations(true, true);
-  phyInfo.rb.setEnabledRotations(false, true, false, true);
+  phyInfo.rb.setLinearDamping(0.25);
+  phyInfo.col.setFriction(0.7);
 
   // Animation States
   const defaultAnim = "idle";

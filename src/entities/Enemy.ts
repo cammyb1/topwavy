@@ -1,9 +1,15 @@
 import type { World, Entity } from "@jael-ecs/core";
-import { AnimationAction, AnimationMixer, Group, Vector3 } from "three";
+import {
+  AnimationAction,
+  AnimationMixer,
+  Group,
+  Vector2,
+  Vector3,
+} from "three";
 import { createDynamicBox } from "../utils";
 import type { LoadedModels } from "../game";
 import { type AnimationState, FiniteState } from "../helpers/state";
-const enemySize = new Vector3(1.5, 1.5, 1.5);
+const enemySize = new Vector2(0.5, 0.5);
 
 export default function Enemy(world: World, startingPos?: Vector3): Entity {
   const player = world.include("isPlayer").entities[0];
@@ -46,7 +52,13 @@ export default function Enemy(world: World, startingPos?: Vector3): Entity {
   const enemyId = world.instantiate("enemy") as number;
   const enemyProxy = world.getEntity(enemyId) as Entity;
   const phyInfo = createDynamicBox(enemySize);
+
   const transform = enemyProxy.get<Group>("transform");
+
+  phyInfo.rb.setTranslation(transform.position, true);
+  phyInfo.rb.lockRotations(true, true);
+  phyInfo.rb.setLinearDamping(0.25);
+  phyInfo.col.setFriction(0.7);
 
   const defaultAnim = "idle";
   const mixer = new AnimationMixer(transform);

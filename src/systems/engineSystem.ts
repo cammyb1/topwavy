@@ -21,7 +21,6 @@ export default function GameEngine(world: World): System {
   let collidingEnemy: Entity | null;
   let recievingDmgTimer = 0;
   const damageTickerRate = 0.5;
-  const linearVelocity = new Vector3();
 
   function damagePlayer(dmg: number) {
     if (playerQuery.size() <= 0 || !dmg) return;
@@ -132,7 +131,7 @@ export default function GameEngine(world: World): System {
         const rb = entity.get<RAPIER.RigidBody>("rigidbody");
         const velocity = entity.get("velocity");
         rb.setRotation(transform.quaternion, true);
-        rb.setLinvel(linearVelocity.copy(rb.linvel()).add(velocity), true);
+        rb.setLinvel(velocity, true);
         transform.position.copy(rb.translation());
       });
     },

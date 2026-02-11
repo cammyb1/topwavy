@@ -6,19 +6,21 @@ import {
 } from "@dimforge/rapier3d";
 import type { World } from "@jael-ecs/core";
 import RapierEngine from "./helpers/rapier";
-import type { Vector3 } from "three";
+import type { Vector2 } from "three";
 
 type ReturnedPhy = {
   rb: RigidBody;
   col: Collider;
 };
 
-export function createDynamicBox(size: Vector3): ReturnedPhy {
+export function createDynamicBox(size: Vector2): ReturnedPhy {
   const rb = RapierEngine.world.createRigidBody(
     RapierEngine.rigidbody.dynamic(),
   );
   const col = RapierEngine.world.createCollider(
-    RapierEngine.collider.box(size.clone().multiplyScalar(0.5)),
+    RapierEngine.collider
+      .capsule(size.y, size.x)
+      .setTranslation(0, size.y * 3, 0),
     rb,
   );
   col.setActiveEvents(ActiveEvents.COLLISION_EVENTS);

@@ -78,17 +78,26 @@ export function mountExperience(state: GLState) {
 
   DefaultLoadingManager.onProgress = (_url, loaded, total) => {
     loader.innerHTML = `<div>
-      ${Math.floor((loaded / total) * 100)}%
+      Loading....${Math.floor((loaded / total) * 100)}%
     <div>`;
   };
 
   promise.then(([assets, screens]: [LoadedModels, LoadedUIElements]) => {
     engine.add("assets", assets);
     engine.add("screens", screens);
+    const machine = engine.get<FiniteState>("state");
 
     uiContainer.innerHTML = screens.StartScreen;
 
-    const machine = engine.get<FiniteState>("state");
+    const playButton: HTMLElement | null =
+      document.getElementById("playAction");
+
+    if (playButton) {
+      playButton.onclick = () => {
+        machine.setActiveState("start");
+        Player(world);
+      };
+    }
 
     machine.on("change", (prev: State | undefined) => {
       if (prev) {
@@ -105,8 +114,6 @@ export function mountExperience(state: GLState) {
       }
     });
 
-    // Create Player Entity
-    Player(world);
     world.addSystem(GameEngine(world));
     world.addSystem(PlayerController(world));
     world.addSystem(EnemyAI(world));

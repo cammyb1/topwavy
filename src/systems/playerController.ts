@@ -4,8 +4,11 @@ import type { GLState } from "../mount3";
 import Bullet from "../entities/Bullet";
 import { Input } from "../helpers/Input";
 import { FiniteState } from "../helpers/state";
+import { RigidBody } from "@dimforge/rapier3d";
 
 const zeroVector = new Vector3();
+const lookAtVector = new Vector3();
+const directionFromPlayer = new Vector3();
 const gunPoint = new Vector3();
 
 export default function PlayerController(world: World): System {
@@ -22,13 +25,14 @@ export default function PlayerController(world: World): System {
   const cameraLerpVector = new Vector3();
   const cameraFollowSpeed = 5;
 
-  const speed = 10;
-  const bulletSpeed = 80;
-  const shootingRate = 0.25;
+  const speed = 1.5;
+  const bulletSpeed = 6;
+  const shootingRate = 0.2;
+  const bulletOffset = new Vector3(0, 0, -0.2);
 
   let shooting = false;
   let shootingStarted = 0;
-  let multiplier = 1.25;
+  let multiplier = 1.5;
 
   Input.register("forward", ["KeyW", "ArrowUp"]);
   Input.register("backward", ["KeyS", "ArrowDown"]);
@@ -45,6 +49,14 @@ export default function PlayerController(world: World): System {
     shootingStarted = Time.elapsed;
     shooting = true;
 
+    shootBullet();
+  });
+
+  Input.pointer.on("up", () => {
+    shooting = false;
+  });
+
+  function shootBullet() {
     // First Bullet
     const player = playerQuery.entities[0];
     const transform = player.get<Group>("transform");
@@ -52,21 +64,16 @@ export default function PlayerController(world: World): System {
     if (gun) {
       gun.updateMatrixWorld(true);
       gun?.getWorldPosition(gunPoint);
-      gun?.getWorldDirection(worldDir);
-      createBullet(gunPoint, worldDir);
+      transform.getWorldDirection(worldDir);
+
+      const startPos = gunPoint.clone().add(bulletOffset.clone().add(worldDir));
+      const velocity = worldDir.clone().multiplyScalar(bulletSpeed);
+      const bulletE = Bullet(world, startPos);
+      const vel = bulletE.get<Vector3>("velocity");
+      const rb = bulletE.get<RigidBody>("rigidbody");
+      vel.y = rb.linvel().y;
+      vel.copy(velocity);
     }
-  });
-
-  Input.pointer.on("up", () => {
-    shooting = false;
-  });
-
-  function createBullet(pos: Vector3, dir: Vector3) {
-    const startPos = pos.clone();
-    const velocity = dir.clone().multiplyScalar(bulletSpeed * Time.delta);
-    const bulletE = Bullet(world, startPos);
-    const vel = bulletE.get<Vector3>("velocity");
-    vel.copy(velocity);
   }
 
   return {
@@ -79,6 +86,7 @@ export default function PlayerController(world: World): System {
         const transform = player.get<Group>("transform");
         const velocity = player.get<Vector3>("velocity");
         const machine = player.get<FiniteState>("machine");
+        const rb = player.get<RigidBody>("rigidbody");
 
         cameraLerpVector.copy(transform.position).add(cameraOffset);
 
@@ -106,12 +114,7 @@ export default function PlayerController(world: World): System {
           Math.abs(shootingStarted - Time.elapsed) > shootingRate
         ) {
           shootingStarted = Time.elapsed;
-
-          const transform = player.get<Group>("transform");
-          const gun = transform.getObjectByName("Pistol");
-          gun?.getWorldPosition(gunPoint);
-          transform.getWorldDirection(worldDir);
-          createBullet(gunPoint, worldDir);
+          shootBullet();
         }
 
         const isRunning = Input.isPressed("run");
@@ -142,18 +145,27 @@ export default function PlayerController(world: World): System {
           multiplier = 1;
         }
 
-        velocity.copy(
-          direction.multiplyScalar(speed * multiplier * Time.delta),
-        );
-
+        velocity.x = direction.x * speed * multiplier;
+        velocity.z = direction.z * speed * multiplier;
+        velocity.y = rb.linvel().y;
         direction.set(0, 0, 0);
 
-        // Look at logic
         caster.setFromCamera(Input.pointer.position, state.camera);
         caster.ray.intersectPlane(plane, hit);
-        hit.y = transform.scale.y / 2; // Avoid loking down
+        const distanceToHit = hit.distanceTo(transform.position);
 
-        transform.lookAt(hit);
+        if (distanceToHit < 2) {
+          directionFromPlayer.set(0, 0, 0);
+          directionFromPlayer.subVectors(hit, transform.position).normalize();
+          hit
+            .copy(transform.position)
+            .add(directionFromPlayer.multiplyScalar(2));
+        }
+
+        hit.y = 0;
+
+        lookAtVector.lerp(hit, Time.delta * 15);
+        transform.lookAt(lookAtVector);
       }
     },
   };

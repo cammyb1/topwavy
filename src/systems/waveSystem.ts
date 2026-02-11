@@ -1,9 +1,9 @@
 import { Time, World, type System } from "@jael-ecs/core";
 import Enemy from "../entities/Enemy";
 import { Vector3 } from "three";
-import { type WaveConfig } from "../entities/Engine";
 import { FiniteState, type State } from "../helpers/state";
 import { destroyEntityWithCollider } from "../utils";
+import { game, type WaveConfig } from "../store";
 
 export default function WaveSystem(world: World): System {
   const engine = world.include("isEngine").entities[0];
@@ -17,7 +17,7 @@ export default function WaveSystem(world: World): System {
   let maxEnemies = 0;
   let spawnTimer = 0;
 
-  const waveConfig = engine.get<WaveConfig>("waveConfig");
+  const waveConfig: WaveConfig = game.getState().waveConfig;
 
   function createEnemy(pos: Vector3) {
     const enemy = Enemy(world, pos);

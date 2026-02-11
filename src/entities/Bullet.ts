@@ -53,7 +53,10 @@ export default function Bullet(world: World, startPos: Vector3Like): Entity {
   kinematicRigidBody.setTranslation(startPos, true);
   bulletProxy.get<Mesh>("transform").position.copy(startPos);
 
+  kinematicRigidBody.lockRotations(true, true);
+  kinematicRigidBody.setLinearDamping(0.25);
   kinematicRigidBody.enableCcd(true);
+  collider.setFriction(0.7);
   collider.setDensity(0);
   collider.setRadius(0.25);
   collider.setSensor(true);

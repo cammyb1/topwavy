@@ -11,15 +11,7 @@ import {
 import RapierEngine from "../helpers/rapier";
 import type { Entity } from "@jael-ecs/core";
 import { FiniteState, type State } from "../helpers/state";
-import { Input } from "../helpers/Input";
 import Player from "./Player";
-
-export interface WaveConfig {
-  current: number;
-  maxWave: number;
-  enemiesPerWave: number;
-  sleepTime: number;
-}
 
 export function Engine(state: GLState, world: World): Entity {
   const engineId = world.create();
@@ -93,19 +85,6 @@ export function Engine(state: GLState, world: World): Entity {
   state.scene.add(directional);
   state.scene.add(RapierEngine.debugMesh);
 
-  // Change base state (pause/start/idle/finish screen(?))
-  Input.on("down", ({ code }) => {
-    // Reserved key
-    if (code === "Space") {
-      const state = proxy.get<FiniteState>("state");
-
-      if (["idle", "paused"].includes(state.active?.name as string))
-        state.setActiveState("start");
-      else if (state.active?.name === "finish") state.setActiveState("idle");
-      else if (state.active?.name !== "paused") state.setActiveState("paused");
-    }
-  });
-
   // Basic finite state machine
   const IDLE_STATE: State = {
     name: "idle",
@@ -136,12 +115,6 @@ export function Engine(state: GLState, world: World): Entity {
   proxy.add("isEngine", true);
   proxy.add("gl", state);
   proxy.add("state", stateMachine);
-  proxy.add("waveConfig", {
-    current: 1,
-    maxWave: 10,
-    enemiesPerWave: 2,
-    sleepTime: 0.5,
-  } as WaveConfig);
 
   return proxy;
 }
