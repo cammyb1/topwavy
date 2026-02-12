@@ -27,9 +27,6 @@ export default function PlayerController(world: World): System {
   const hit = new Vector3();
   const direction = new Vector3();
   const worldDir = new Vector3();
-  const cameraOffset = new Vector3(0, 50, 20);
-  const cameraLerpVector = new Vector3();
-  const cameraFollowSpeed = 0.5;
 
   const speed = 1.5;
   const bulletSpeed = 6;
@@ -140,13 +137,6 @@ export default function PlayerController(world: World): System {
         const machine = player.get<FiniteState>("machine");
         const rb = player.get<RigidBody>("rigidbody");
 
-        cameraLerpVector.copy(transform.position).add(cameraOffset);
-
-        gl.camera.position.lerp(
-          cameraLerpVector,
-          Time.delta * cameraFollowSpeed,
-        );
-
         // Movement
         if (Input.isPressed("forward")) {
           direction.z = -1;
@@ -193,18 +183,21 @@ export default function PlayerController(world: World): System {
         const isRunning = Input.isPressed("run");
 
         if (direction.equals(zeroVector)) {
+          console.log("Not Moving");
           if (activeShooting) {
             machine.setActiveState("idle-shoot");
           } else {
             machine.setActiveState("idle");
           }
         } else if (!isRunning) {
+          console.log("Walking");
           if (activeShooting) {
             machine.setActiveState("walk-shoot");
           } else {
             machine.setActiveState("walk");
           }
         } else {
+          console.log("Running");
           if (activeShooting) {
             machine.setActiveState("run-shoot");
           } else {

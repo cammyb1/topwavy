@@ -68,7 +68,7 @@ export default function Player(world: World): Entity {
     name: keyof typeof actions,
   ): (_prev: AnimationState | undefined, _machine: FiniteState) => void {
     return (_prev: AnimationState | undefined, _machine: FiniteState) => {
-      if (_prev && _prev.action !== actions[name]) {
+      if (_prev && _prev.action) {
         _prev.action.fadeOut(0.25);
       }
 
@@ -109,7 +109,7 @@ export default function Player(world: World): Entity {
   const RUN_STATE: AnimationState = {
     name: "run",
     action: actions.Run_Gun,
-    enter: onStateEnter("Run"),
+    enter: onStateEnter("Run_Gun"),
   };
 
   const RUN_SHOOT_STATE: AnimationState = {

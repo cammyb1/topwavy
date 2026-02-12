@@ -4,7 +4,7 @@ import type { AnimationAction } from "three";
 export interface State {
   name: string;
   enter?: (_prev: this | undefined, machine: FiniteState) => void;
-  exit?: () => void;
+  exit?: (_next: this | undefined) => void;
 }
 
 export interface AnimationState extends State {
@@ -50,7 +50,7 @@ export class FiniteState<
     if (state) {
       const prev = this.active;
       if (prev) {
-        prev.exit?.();
+        prev.exit?.(state);
       }
 
       this.active = state;

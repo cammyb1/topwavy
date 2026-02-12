@@ -6,7 +6,7 @@ import {
 } from "@dimforge/rapier3d";
 import type { Entity, World } from "@jael-ecs/core";
 import RapierEngine from "./helpers/rapier";
-import type { Vector2 } from "three";
+import type { AnimationAction, Vector2 } from "three";
 import { FiniteState } from "./helpers/state";
 
 export const PRIORITY_LIST = Object.freeze({

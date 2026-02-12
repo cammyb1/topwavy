@@ -15,7 +15,8 @@ import {
 import { Color, DefaultLoadingManager } from "three";
 import FileLoader from "./helpers/FileLoader";
 import CollisionSystem from "./systems/collisionSystem";
-import { isGameActive, sleep } from "./utils";
+import { isGameActive } from "./utils";
+import CameraSystem from "./systems/cameraSystem";
 
 const gltfLoader = new GLTFLoader();
 const fileLoader = new FileLoader<Document>();
@@ -106,21 +107,31 @@ export function mountExperience(state: GLState) {
     engine.add("screens", screens);
     const machine = engine.get<FiniteState>("state");
 
+    let sleepingWave: number | undefined;
+
     screens.WaveInfo.addEventListener("show", () => {
       const waveInfo = screens.WaveInfo.getElementsByTagName("div")[0];
 
-      waveInfo.classList.remove("slide-down");
-      waveInfo.classList.remove("slide-up");
+      if (sleepingWave) {
+        clearTimeout(sleepingWave);
+        waveInfo.classList.remove("slide-down");
+        waveInfo.classList.add("slide-up");
+        waveInfo.style.animationDuration = "0.2s";
+        sleepingWave = undefined;
+      } else {
+        waveInfo.classList.remove("slide-down");
+        waveInfo.classList.remove("slide-up");
+      }
 
       // First sleep to make sure classList is removed
-      sleep(100).then(() => {
+      setTimeout(() => {
+        waveInfo.classList.remove("slide-up");
         waveInfo.classList.add("slide-down");
-        sleep(4000).then(() => {
-          if (waveInfo.classList.contains("slide-up")) return;
+        sleepingWave = setTimeout(() => {
           waveInfo.classList.remove("slide-down");
           waveInfo.classList.add("slide-up");
-        });
-      });
+        }, 4000);
+      }, 100);
     });
 
     machine.setActiveState("idle");
@@ -128,6 +139,7 @@ export function mountExperience(state: GLState) {
     world.addSystem(GameEngine(world));
     world.addSystem(CollisionSystem(world));
     world.addSystem(PlayerController(world));
+    world.addSystem(CameraSystem(world));
     world.addSystem(EnemyAI(world));
     world.addSystem(WaveSystem(world));
 
