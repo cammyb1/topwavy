@@ -28,8 +28,8 @@ export default function PlayerController(world: World): System {
   const direction = new Vector3();
   const worldDir = new Vector3();
 
-  const speed = 1.5;
-  const bulletSpeed = 6;
+  const speed = 1.25;
+  const bulletSpeed = 10;
   const shootingRate = 0.2;
   const damageTickerRate = 0.5;
   const bulletRechargeTime = 1.5;
@@ -39,7 +39,7 @@ export default function PlayerController(world: World): System {
   let shooting = false;
   let recharging = false;
   let shootingStarted = 0;
-  let multiplier = 1.5;
+  let multiplier = 1.75;
   let activeBullets = 0;
 
   let rechargingTimer = 0;
@@ -183,21 +183,18 @@ export default function PlayerController(world: World): System {
         const isRunning = Input.isPressed("run");
 
         if (direction.equals(zeroVector)) {
-          console.log("Not Moving");
           if (activeShooting) {
             machine.setActiveState("idle-shoot");
           } else {
             machine.setActiveState("idle");
           }
         } else if (!isRunning) {
-          console.log("Walking");
           if (activeShooting) {
             machine.setActiveState("walk-shoot");
           } else {
             machine.setActiveState("walk");
           }
         } else {
-          console.log("Running");
           if (activeShooting) {
             machine.setActiveState("run-shoot");
           } else {

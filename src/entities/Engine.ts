@@ -102,6 +102,13 @@ export function Engine(state: GLState, world: World): Entity {
     run: { keys: ["ShiftLeft"] },
   });
 
+  const onPause = (e: { code: string; repeated: boolean }) => {
+    if (e.code === "Space" && !e.repeated) {
+      stateMachine.setActiveState(
+        stateMachine.active?.name === "paused" ? "start" : "paused",
+      );
+    }
+  };
   // Basic finite state machine
   const IDLE_STATE: State = {
     name: "idle",
@@ -131,32 +138,41 @@ export function Engine(state: GLState, world: World): Entity {
     name: "paused",
     enter() {
       const screens = proxy.get<LoadedUIElements>("screens");
-      uiContainer.appendChild(screens.OptionsScreen);
+      uiContainer.appendChild(screens.PauseScreen);
+      Input.off("down", onPause);
+      setTimeout(() => {
+        Input.on("down", onPause);
+      }, 100);
     },
     exit() {
       const screens = proxy.get<LoadedUIElements>("screens");
       uiContainer.removeChild(screens.PauseScreen);
+      Input.off("down", onPause);
     },
   };
   const START_STATE: State = {
     name: "start",
     enter(_prev) {
-      uiContainer.innerHTML = "";
-
       if (_prev && _prev.name === "idle") {
         const info = proxy.get<LoadedUIElements>("screens").WaveInfo;
-        uiContainer.appendChild(info);
-        info.dispatchEvent(showWaveEvent);
+        if (!uiContainer.contains(info)) {
+          uiContainer.appendChild(info);
+          info.dispatchEvent(showWaveEvent);
+        }
+
+        // Enter/restart game
+        state.camera.position.set(0, 50, 20);
+        state.camera.lookAt(zeroVector);
+        Player(world);
       }
 
-      // Enter/restart game
-      state.camera.position.set(0, 50, 20);
-      state.camera.lookAt(zeroVector);
-      Player(world);
+      Input.off("down", onPause);
+      setTimeout(() => {
+        Input.on("down", onPause);
+      }, 100);
     },
-    exit() {
-      const info = proxy.get<LoadedUIElements>("screens").WaveInfo;
-      uiContainer.removeChild(info);
+    exit(_next) {
+      Input.off("down", onPause);
     },
   };
   const FINISHED_STATE: State = {

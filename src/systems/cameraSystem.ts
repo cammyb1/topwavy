@@ -1,6 +1,6 @@
 import { Time, type System, type World } from "@jael-ecs/core";
 import { PRIORITY_LIST } from "../utils";
-import { Box3, Frustum, Matrix4, Vector3, type Group } from "three";
+import { Frustum, Matrix4, Vector3, type Group } from "three";
 import { type GLState } from "../mount3";
 
 export default function CameraSystem(world: World): System {
@@ -10,9 +10,10 @@ export default function CameraSystem(world: World): System {
   const cameraOffset = new Vector3(0, 50, 20);
   const cameraLerpVector = new Vector3();
   const cameraFrustum = new Frustum();
-  const playerBox = new Box3();
+  const playerOffset = new Vector3();
+  const playerDirection = new Vector3();
   const dummyMat = new Matrix4();
-  const cameraFollowSpeed = 5;
+  const cameraFollowSpeed = 7;
   let lerping = false;
 
   return {
@@ -24,7 +25,12 @@ export default function CameraSystem(world: World): System {
       const player = playerQuery.entities[0];
       const transform = player.get<Group>("transform");
 
-      playerBox.setFromObject(transform);
+      transform.getWorldDirection(playerDirection);
+      playerOffset
+        .copy(transform.position)
+        .add(playerDirection)
+        .multiplyScalar(1.5);
+      playerOffset.y = 0;
       cameraFrustum.setFromProjectionMatrix(
         dummyMat.multiplyMatrices(
           gl.camera.projectionMatrix,
@@ -32,7 +38,7 @@ export default function CameraSystem(world: World): System {
         ),
       );
 
-      if (!cameraFrustum.intersectsBox(playerBox) || lerping) {
+      if (!cameraFrustum.containsPoint(playerOffset) || lerping) {
         if (cameraLerpVector.distanceTo(gl.camera.position) < 1) {
           cameraLerpVector.copy(transform.position).add(cameraOffset);
           lerping = false;

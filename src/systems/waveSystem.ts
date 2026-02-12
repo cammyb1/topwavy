@@ -75,6 +75,12 @@ export default function WaveSystem(world: World): System {
       spawnedEnemies = 0;
       const waveContainer = document.getElementById("wave-n");
       waveConfig.current += 1;
+
+      if (waveConfig.current > waveConfig.maxWave) {
+        engine.get("state").setActiveState("finish");
+        return;
+      }
+
       if (waveContainer) {
         waveContainer.innerHTML = waveConfig.current.toString();
         screens.WaveInfo.dispatchEvent(showWaveEvent);
