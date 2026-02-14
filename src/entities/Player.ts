@@ -5,25 +5,27 @@ import {
   Group,
   Vector3,
   Vector2,
+  AnimationClip,
 } from "three";
-import { createDynamicBox } from "../utils";
-import { type LoadedModels } from "../game";
+import { addState, createDynamicBox } from "../utils";
+import { type LoadedAssets } from "../game";
 import { FiniteState, type AnimationState } from "../helpers/state";
 
 export default function Player(world: World): Entity {
   const engine = world.include("isEngine").entities[0];
-  const model = engine.get<LoadedModels>("assets").Character_Soldier;
+  const assets = engine.get<LoadedAssets>("assets");
+  const model = assets.loaded_models.ranger;
+  const bow = assets.loaded_models.bow;
+
+  const generalAnims = assets.loaded_animations.general;
+  const basicAnims = assets.loaded_animations.basic;
+  const rangedAnims = assets.loaded_animations.ranged;
   const prefab = world.getPrefab("player");
 
   if (!prefab) {
-    const indexFinger = model.scene.getObjectByProperty("name", "Index1R");
-
-    // Hide weapons but leave knife model
-    indexFinger?.children.forEach((child) => {
-      if (child.isObject3D && child.name !== "Pistol") {
-        child.visible = false;
-      }
-    });
+    model.scene.getObjectByName("handslotl")?.add(bow.scene);
+    bow.scene.rotateY(-Math.PI);
+    bow.scene.rotateX(-Math.PI);
 
     model.scene.traverse((node) => {
       if (node.isObject3D) {
@@ -56,76 +58,33 @@ export default function Player(world: World): Entity {
   const defaultAnim = "idle";
   const mixer = new AnimationMixer(transform);
   const actions: { [k: string]: AnimationAction } = {};
+  const actionsClips: AnimationClip[] = ([] as AnimationClip[]).concat(
+    generalAnims,
+    basicAnims,
+    rangedAnims,
+  );
 
-  model.animations.forEach((clip) => {
+  actionsClips.forEach((clip) => {
     const action = mixer.clipAction(clip);
     actions[clip.name] = action;
     action.setEffectiveWeight(0);
     action.play();
   });
 
-  function onStateEnter(
-    name: keyof typeof actions,
-  ): (_prev: AnimationState | undefined, _machine: FiniteState) => void {
-    return (_prev: AnimationState | undefined, _machine: FiniteState) => {
-      if (_prev && _prev.action) {
-        _prev.action.fadeOut(0.25);
-      }
-
-      actions[name].reset().setEffectiveWeight(1).fadeIn(0.25);
-    };
-  }
-
-  const IDLE_STATE: AnimationState = {
-    name: "idle",
-    action: actions.Idle,
-    enter: onStateEnter("Idle"),
-  };
-
-  const IDLE_SHOOT_STATE: AnimationState = {
-    name: "idle-shoot",
-    action: actions.Idle_Shoot,
-    enter: onStateEnter("Idle_Shoot"),
-  };
-
-  const HIT_STATE: AnimationState = {
-    name: "hit",
-    action: actions.HitReact,
-    enter: onStateEnter("HitReact"),
-  };
-
-  const WALK_STATE: AnimationState = {
-    name: "walk",
-    action: actions.Walk,
-    enter: onStateEnter("Walk"),
-  };
-
-  const WALK_SHOOT_STATE: AnimationState = {
-    name: "walk-shoot",
-    action: actions.Walk_Shoot,
-    enter: onStateEnter("Walk_Shoot"),
-  };
-
-  const RUN_STATE: AnimationState = {
-    name: "run",
-    action: actions.Run_Gun,
-    enter: onStateEnter("Run_Gun"),
-  };
-
-  const RUN_SHOOT_STATE: AnimationState = {
-    name: "run-shoot",
-    action: actions.Run_Shoot,
-    enter: onStateEnter("Run_Shoot"),
-  };
+  const IdleAction = "Ranged_Bow_Idle";
+  const WalkAction = "Walking_B";
+  const RunAction = "Running_A";
+  const HitAction = "Hit_A";
+  const DrawBowAction = "Ranged_Bow_Draw";
+  const ReleaseBowAction = "Ranged_Bow_Release";
 
   const machine = new FiniteState<AnimationState>();
-  machine.register(IDLE_STATE);
-  machine.register(IDLE_SHOOT_STATE);
-  machine.register(HIT_STATE);
-  machine.register(WALK_STATE);
-  machine.register(WALK_SHOOT_STATE);
-  machine.register(RUN_STATE);
-  machine.register(RUN_SHOOT_STATE);
+  machine.register(addState(actions, "idle", IdleAction));
+  machine.register(addState(actions, "walk", WalkAction));
+  machine.register(addState(actions, "run", RunAction));
+  machine.register(addState(actions, "hit", HitAction));
+  machine.register(addState(actions, "draw", DrawBowAction));
+  machine.register(addState(actions, "release", ReleaseBowAction));
 
   machine.setActiveState(defaultAnim);
 

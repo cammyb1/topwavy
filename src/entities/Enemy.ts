@@ -1,13 +1,14 @@
 import type { World, Entity } from "@jael-ecs/core";
 import {
   AnimationAction,
+  AnimationClip,
   AnimationMixer,
   Group,
   Vector2,
   Vector3,
 } from "three";
-import { createDynamicBox } from "../utils";
-import type { LoadedModels } from "../game";
+import { addState, createDynamicBox } from "../utils";
+import type { LoadedAssets } from "../game";
 import { type AnimationState, FiniteState } from "../helpers/state";
 const enemySize = new Vector2(0.5, 0.5);
 
@@ -15,17 +16,17 @@ export default function Enemy(world: World, startingPos?: Vector3): Entity {
   const player = world.include("isPlayer").entities[0];
   const engine = world.include("isEngine").entities[0];
   const prefab = world.getPrefab("enemy");
-  const model = engine.get<LoadedModels>("assets").Character_Enemy;
+  const assets = engine.get<LoadedAssets>("assets");
+
+  const model = assets.loaded_models.skeleton_minion;
+  const blade = assets.loaded_models.skeleton_blade;
+
+  const generalAnims = assets.loaded_animations.general;
+  const basicAnims = assets.loaded_animations.basic;
+  const meleeAnims = assets.loaded_animations.melee;
 
   if (!prefab) {
-    const indexFinger = model.scene.getObjectByProperty("name", "Index1R");
-
-    // Hide weapons but leave knife model
-    indexFinger?.children.forEach((child) => {
-      if (child.isObject3D && child.name !== "Knife_1") {
-        child.visible = false;
-      }
-    });
+    model.scene.getObjectByName("handslotr")?.add(blade.scene);
 
     model.scene.traverse((node) => {
       if (node.isObject3D) {
@@ -63,62 +64,27 @@ export default function Enemy(world: World, startingPos?: Vector3): Entity {
   const defaultAnim = "idle";
   const mixer = new AnimationMixer(transform);
   const actions: { [k: string]: AnimationAction } = {};
+  const actionsClips: AnimationClip[] = ([] as AnimationClip[]).concat(
+    generalAnims,
+    basicAnims,
+    meleeAnims,
+  );
 
-  model.animations.forEach((clip) => {
+  actionsClips.forEach((clip) => {
     const action = mixer.clipAction(clip);
     actions[clip.name] = action;
     action.setEffectiveWeight(0);
     action.play();
   });
 
-  function onStateEnter(
-    name: keyof typeof actions,
-  ): (_prev: AnimationState | undefined, _machine: FiniteState) => void {
-    return (_prev: AnimationState | undefined, _machine: FiniteState) => {
-      if (_prev && _prev.action !== actions[name]) {
-        _prev.action.fadeOut(0.25);
-      }
-
-      actions[name].reset().setEffectiveWeight(1).fadeIn(0.25);
-    };
-  }
-
-  const IDLE_STATE: AnimationState = {
-    name: "idle",
-    action: actions.Idle,
-    enter: onStateEnter("Idle"),
-  };
-
-  const PUNCH_STATE: AnimationState = {
-    name: "punch",
-    action: actions.Walk_Shoot,
-    enter: onStateEnter("Walk_Shoot"),
-  };
-
-  const HIT_STATE: AnimationState = {
-    name: "hit",
-    action: actions.HitReact,
-    enter: onStateEnter("HitReact"),
-  };
-
-  const WALK_STATE: AnimationState = {
-    name: "walk",
-    action: actions.Walk,
-    enter: onStateEnter("Walk"),
-  };
-
-  const RUN_STATE: AnimationState = {
-    name: "run",
-    action: actions.Run,
-    enter: onStateEnter("Run"),
-  };
-
   const machine = new FiniteState<AnimationState>();
-  machine.register(IDLE_STATE);
-  machine.register(PUNCH_STATE);
-  machine.register(HIT_STATE);
-  machine.register(WALK_STATE);
-  machine.register(RUN_STATE);
+  machine.register(addState(actions, "idle", "Idle_A"));
+  machine.register(addState(actions, "hit", "Hit_A"));
+  machine.register(addState(actions, "walk", "Walking_A"));
+  machine.register(addState(actions, "run", "Running_A"));
+  machine.register(
+    addState(actions, "punch", "Melee_1H_Attack_Slice_Diagonal"),
+  );
 
   machine.setActiveState(defaultAnim);
 

@@ -12,7 +12,7 @@ import {
   SkeletonUtils,
   type GLTF,
 } from "three/examples/jsm/Addons.js";
-import { Color, DefaultLoadingManager } from "three";
+import { AnimationClip, Color, DefaultLoadingManager } from "three";
 import FileLoader from "./helpers/FileLoader";
 import CollisionSystem from "./systems/collisionSystem";
 import { isGameActive } from "./utils";
@@ -21,31 +21,65 @@ import CameraSystem from "./systems/cameraSystem";
 const gltfLoader = new GLTFLoader();
 const fileLoader = new FileLoader<Document>();
 
-const getModelPath = (model: string) => `./models/${model}.gltf`;
-const getUIPath = (ui: string) => `./ui/${ui}.html`;
+const getPublicPath = (folder: string, file: string) => {
+  const splittedFile = file.split(".");
+  const fileName: string = splittedFile[0];
+  const extension: string = splittedFile[1];
+  return `./${folder}/${fileName}.${extension}`;
+};
 
 export type LoadedModels = { [k: string]: GLTF };
+export type LoadedAnimations = { [k: string]: AnimationClip[] };
 export type LoadedUIElements = { [k: string]: HTMLDivElement };
+export type LoadedAssets = {
+  loaded_models: LoadedModels;
+  loaded_animations: LoadedAnimations;
+};
 
 const loadUI = async (path: string) =>
   await fileLoader
     .setResponseType("document")
     .setMimeType("text/html")
-    .loadAsync(getUIPath(path));
+    .loadAsync(getPublicPath("ui", `${path}.html`));
 
 const loadModel = async (model: string) =>
-  await gltfLoader.loadAsync(getModelPath(model));
+  await gltfLoader.loadAsync(getPublicPath("models", model));
 
-async function preloadModels(): Promise<LoadedModels> {
-  const models = ["Character_Soldier", "Character_Enemy", "Character_Hazmat"];
-  let loaded_models: LoadedModels = {};
+const loadAnimation = async (animation: string) =>
+  await gltfLoader.loadAsync(getPublicPath("animations", animation));
 
-  for (let model of models) {
-    const data = await loadModel(model);
+async function preloadAssets(): Promise<LoadedAssets> {
+  const models: { [k: string]: string } = {
+    ranger: "Ranger.glb",
+    arrow: "arrow_bow.glb",
+    bow: "bow_withString.glb",
+    arrow_bundle: "arrow_bow_bundle.glb",
+    skeleton_minion: "Skeleton_Minion.glb",
+    skeleton_warrior: "Skeleton_Warrior.glb",
+    skeleton_blade: "Skeleton_Blade.gltf",
+  };
+  const animations: { [k: string]: string } = {
+    general: "Rig_Medium_General.glb",
+    basic: "Rig_Medium_MovementBasic.glb",
+    advanced: "Rig_Medium_MovementAdvanced.glb",
+    melee: "Rig_Medium_CombatMelee.glb",
+    ranged: "Rig_Medium_CombatRanged.glb",
+  };
+
+  const loaded_models: LoadedModels = {};
+  const loaded_animations: LoadedAnimations = {};
+
+  for (let model in models) {
+    const data = await loadModel(models[model]);
     loaded_models[model] = data;
   }
 
-  return loaded_models;
+  for (let animation in animations) {
+    const data = await loadAnimation(animations[animation]);
+    loaded_animations[animation] = data.animations;
+  }
+
+  return { loaded_models, loaded_animations };
 }
 
 async function preloadUI(): Promise<LoadedUIElements> {
@@ -93,7 +127,7 @@ export function mountExperience(state: GLState) {
   const uiContainer: HTMLElement = document.getElementById("ui") as HTMLElement;
   const loader: HTMLElement = document.getElementById("loader") as HTMLElement;
 
-  const promise = Promise.all([preloadModels(), preloadUI()]);
+  const promise = Promise.all([preloadAssets(), preloadUI()]);
 
   DefaultLoadingManager.onProgress = (_url, loaded, total) => {
     loader.innerHTML = `<div>
@@ -101,7 +135,7 @@ export function mountExperience(state: GLState) {
     <div>`;
   };
 
-  promise.then(([assets, screens]: [LoadedModels, LoadedUIElements]) => {
+  promise.then(([assets, screens]: [LoadedAssets, LoadedUIElements]) => {
     uiContainer.removeChild(loader);
     engine.add("assets", assets);
     engine.add("screens", screens);

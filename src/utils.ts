@@ -7,7 +7,7 @@ import {
 import type { Entity, World } from "@jael-ecs/core";
 import RapierEngine from "./helpers/rapier";
 import type { AnimationAction, Vector2 } from "three";
-import { FiniteState } from "./helpers/state";
+import { FiniteState, type AnimationState } from "./helpers/state";
 
 export const PRIORITY_LIST = Object.freeze({
   RENDER: 0,
@@ -19,6 +19,41 @@ type ReturnedPhy = {
   rb: RigidBody & { onCollisionStart: Function; onCollisionEnd: Function };
   col: Collider;
 };
+
+export function onStateEnter(
+  actions: { [k: string]: AnimationAction },
+  name: keyof typeof actions,
+): (_prev: AnimationState | undefined, _machine: FiniteState) => void {
+  return (_prev: AnimationState | undefined, _machine: FiniteState) => {
+    if (name === "Idle_A") {
+      actions.Ranged_Bow_Aiming_Idle?.reset()
+        .setEffectiveWeight(1)
+        .fadeIn(0.25);
+    } else {
+      actions.Ranged_Bow_Aiming_Idle?.fadeOut(0.25);
+    }
+
+    actions[name]?.reset().setEffectiveWeight(1).fadeIn(0.25);
+  };
+}
+
+export function onStateExit(_prev: AnimationState) {
+  _prev.action.fadeOut(0.25);
+}
+
+export function addState(
+  actions: { [k: string]: AnimationAction },
+  keyName: string,
+  actionName: string,
+): AnimationState {
+  const STATE: AnimationState = {
+    name: keyName,
+    action: actions[actionName],
+    enter: onStateEnter(actions, actionName),
+    exit: onStateExit,
+  };
+  return STATE;
+}
 
 export function isGameActive(engine: Entity): boolean {
   if (!engine.get("isEngine")) return false;

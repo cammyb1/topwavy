@@ -15,7 +15,7 @@ import type { RBUserdataEvents } from "./collisionSystem";
 const zeroVector = new Vector3();
 const lookAtVector = new Vector3();
 const directionFromPlayer = new Vector3();
-const gunPoint = new Vector3();
+const bowPoint = new Vector3();
 
 export default function PlayerController(world: World): System {
   const playerQuery = world.include("isPlayer");
@@ -50,11 +50,20 @@ export default function PlayerController(world: World): System {
     if (playerQuery.size() <= 0 || !isGameActive(engine)) return;
     shooting = true;
 
+    const player = playerQuery.entities[0];
+    const machine = player.get<FiniteState>("machine");
+    machine.setActiveState("draw_bow");
+
     shootBullet();
   });
 
   Input.pointer.on("up", () => {
+    if (playerQuery.size() <= 0 || !isGameActive(engine)) return;
     shooting = false;
+
+    const player = playerQuery.entities[0];
+    const machine = player.get<FiniteState>("machine");
+    machine.setActiveState("release_bow");
   });
 
   function damagePlayer(dmg: number) {
@@ -71,13 +80,13 @@ export default function PlayerController(world: World): System {
     // First Bullet
     const player = playerQuery.entities[0];
     const transform = player.get<Group>("transform");
-    const gun = transform.getObjectByName("Pistol");
-    if (gun) {
-      gun.updateMatrixWorld(true);
-      gun?.getWorldPosition(gunPoint);
+    const bow = transform.getObjectByName("bow_withString");
+    if (bow) {
+      bow.updateMatrixWorld(true);
+      bow?.getWorldPosition(bowPoint);
       transform.getWorldDirection(worldDir);
 
-      const startPos = gunPoint.clone().add(bulletOffset.clone().add(worldDir));
+      const startPos = bowPoint.clone().add(bulletOffset.clone().add(worldDir));
       const velocity = worldDir.clone().multiplyScalar(bulletSpeed);
       const bulletE = Bullet(world, startPos);
       const vel = bulletE.get<Vector3>("velocity");
@@ -183,23 +192,11 @@ export default function PlayerController(world: World): System {
         const isRunning = Input.isPressed("run");
 
         if (direction.equals(zeroVector)) {
-          if (activeShooting) {
-            machine.setActiveState("idle-shoot");
-          } else {
-            machine.setActiveState("idle");
-          }
+          machine.setActiveState("idle");
         } else if (!isRunning) {
-          if (activeShooting) {
-            machine.setActiveState("walk-shoot");
-          } else {
-            machine.setActiveState("walk");
-          }
+          machine.setActiveState("walk");
         } else {
-          if (activeShooting) {
-            machine.setActiveState("run-shoot");
-          } else {
-            machine.setActiveState("run");
-          }
+          machine.setActiveState("run");
         }
 
         if (isRunning) {
