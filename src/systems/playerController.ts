@@ -1,10 +1,10 @@
 import { Time, type Entity, type System, type World } from "@jael-ecs/core";
 import { Group, Plane, Raycaster, Vector3 } from "three";
 import type { GLState } from "../mount3";
-import Bullet from "../entities/Bullet";
+import Arrow from "../entities/Arrow";
 import { Input } from "../helpers/Input";
 import { FiniteState } from "../helpers/state";
-import { RigidBody } from "@dimforge/rapier3d";
+import { Collider, RigidBody } from "@dimforge/rapier3d";
 import {
   destroyEntityWithCollider,
   isGameActive,
@@ -31,18 +31,15 @@ export default function PlayerController(world: World): System {
   const speed = 1.25;
   const bulletSpeed = 10;
   const shootingRate = 0.2;
-  const damageTickerRate = 0.5;
-  const bulletRechargeTime = 1.5;
+  const damageTickerRate = 0.75;
   const bulletOffset = new Vector3(0, 0, -0.2);
-  const bulletMag = 20;
+  const arrowMag = 30;
 
   let shooting = false;
-  let recharging = false;
   let shootingStarted = 0;
   let multiplier = 1.75;
-  let activeBullets = 0;
+  let currentArrows = arrowMag;
 
-  let rechargingTimer = 0;
   let recievingDmgTimer = 0;
   let collidingEntity: Entity | undefined;
 
@@ -54,7 +51,7 @@ export default function PlayerController(world: World): System {
     const machine = player.get<FiniteState>("machine");
     machine.setActiveState("draw_bow");
 
-    shootBullet();
+    shootArrow();
   });
 
   Input.pointer.on("up", () => {
@@ -75,9 +72,8 @@ export default function PlayerController(world: World): System {
     console.log("Damagin player with ", dmg, " current Health: ", health);
   }
 
-  function shootBullet() {
-    if (activeBullets >= bulletMag) return;
-    // First Bullet
+  function shootArrow() {
+    if (currentArrows <= 0) return;
     const player = playerQuery.entities[0];
     const transform = player.get<Group>("transform");
     const bow = transform.getObjectByName("bow_withString");
@@ -88,23 +84,25 @@ export default function PlayerController(world: World): System {
 
       const startPos = bowPoint.clone().add(bulletOffset.clone().add(worldDir));
       const velocity = worldDir.clone().multiplyScalar(bulletSpeed);
-      const bulletE = Bullet(world, startPos);
-      const vel = bulletE.get<Vector3>("velocity");
-      const rb = bulletE.get<RigidBody & RBUserdataEvents>("rigidbody");
+      const arrowE = Arrow(world, startPos);
+      const arrowTransform = arrowE.get<Group>("transform");
+      const vel = arrowE.get<Vector3>("velocity");
+      const rb = arrowE.get<RigidBody & RBUserdataEvents>("rigidbody");
+      vel.y = rb.linvel().y;
+      vel.copy(velocity);
+      arrowTransform.lookAt(velocity);
 
       rb.userData = {
         onCollisionStart: (e: Entity) => {
           if (e.get("isEnemy")) {
-            const damage = bulletE.get<number>("damage");
+            const damage = arrowE.get<number>("damage");
             e.get("health").current -= damage;
-            destroyEntityWithCollider(bulletE.id, world);
+            destroyEntityWithCollider(arrowE.id, world);
           }
         },
       };
 
-      vel.y = rb.linvel().y;
-      vel.copy(velocity);
-      activeBullets += 1;
+      currentArrows -= 1;
     }
   }
 
@@ -119,8 +117,15 @@ export default function PlayerController(world: World): System {
         if (e.get("isEnemy")) {
           const enemyMachine = e.get<FiniteState>("machine");
           enemyMachine.setActiveState("punch");
-          damagePlayer(e.get<number>("damage"));
           collidingEntity = e;
+        }
+        if (e.get("isBundle")) {
+          currentArrows = arrowMag;
+          const transform = e.get<Group>("transform");
+          const col = e.get<Collider>("collider");
+          transform.visible = false;
+          col.setEnabled(false);
+          e.add("hidden", true)
         }
       },
       onCollisionEnd: (e: Entity) => {
@@ -160,23 +165,12 @@ export default function PlayerController(world: World): System {
           direction.x = 1;
         }
 
-        if (activeBullets >= bulletMag) {
-          recharging = true;
-          rechargingTimer += Time.delta;
-          if (rechargingTimer > bulletRechargeTime) {
-            activeBullets = 0;
-            recharging = false;
-            shootingStarted = 0;
-            rechargingTimer = 0;
-          }
-        }
-
-        let activeShooting = shooting && !recharging;
+        let activeShooting = shooting && currentArrows > 0;
 
         if (activeShooting) {
           shootingStarted += Time.delta;
           if (shootingStarted > shootingRate) {
-            shootBullet();
+            shootArrow();
             shootingStarted = 0;
           }
         }
@@ -184,8 +178,8 @@ export default function PlayerController(world: World): System {
         if (collidingEntity) {
           recievingDmgTimer += Time.delta;
           if (recievingDmgTimer > damageTickerRate) {
-            damagePlayer(collidingEntity.get("damage"));
             recievingDmgTimer = 0;
+            damagePlayer(collidingEntity.get("damage"));
           }
         }
 

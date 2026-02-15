@@ -1,42 +1,39 @@
 import type { World, Entity } from "@jael-ecs/core";
-import {
-  Mesh,
-  MeshLambertMaterial,
-  SphereGeometry,
-  Vector3,
-  type Vector3Like,
-} from "three";
+import { Mesh, Vector3 } from "three";
 import RapierEngine from "../helpers/rapier";
 import * as RAPIER from "@dimforge/rapier3d";
+import type { LoadedAssets } from "../game";
 
-const scale = new Vector3(1, 1, 1);
-const sphereGeometry = new SphereGeometry(1, 32, 32);
-const bulletMaterial = new MeshLambertMaterial({ color: "yellow" });
-
-export default function Bullet(world: World, startPos: Vector3Like): Entity {
-  const prefab = world.getPrefab("bullet");
+export default function Arrow(world: World, startPos: Vector3): Entity {
+  const prefab = world.getPrefab("arrow");
+  const engine = world.include("isEngine").entities[0];
+  const assets = engine.get<LoadedAssets>("assets");
 
   if (!prefab) {
-    const mesh = new Mesh(sphereGeometry, bulletMaterial);
+    const mesh = assets.loaded_models.arrow.scene;
 
     // Physics world stuff
-    mesh.castShadow = true;
-    mesh.scale.copy(scale.multiplyScalar(0.1));
+    mesh.traverse((node) => {
+      if (node.isObject3D) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+      }
+    });
     mesh.position.copy(startPos);
 
     // Components
-    const bulletSchema = {
+    const arrowSchema = {
       transform: mesh,
       isBullet: true,
       lifetime: { current: 1, decreaseSpeed: 1.5 },
       velocity: new Vector3(),
       damage: 10,
     };
-    world.createPrefab("bullet", bulletSchema);
+    world.createPrefab("arrow", arrowSchema);
   }
 
-  const bulletId = world.instantiate("bullet") as number;
-  const bulletProxy = world.getEntity(bulletId) as Entity;
+  const arrowId = world.instantiate("arrow") as number;
+  const arrowProxy = world.getEntity(arrowId) as Entity;
 
   const kinematicDesc = RapierEngine.rigidbody
     .velKinematic()
@@ -50,20 +47,20 @@ export default function Bullet(world: World, startPos: Vector3Like): Entity {
   collider.setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS);
 
   kinematicRigidBody.setTranslation(startPos, true);
-  bulletProxy.get<Mesh>("transform").position.copy(startPos);
+  collider.setTranslation(startPos);
+  arrowProxy.get<Mesh>("transform").position.copy(startPos);
 
   kinematicRigidBody.lockRotations(true, true);
   kinematicRigidBody.setLinearDamping(0.25);
   kinematicRigidBody.enableCcd(true);
+
   collider.setFriction(0.7);
   collider.setDensity(0);
   collider.setRadius(0.25);
   collider.setSensor(true);
 
-  bulletProxy.add("rigidbody", kinematicRigidBody);
-  bulletProxy.add("collider", collider);
+  arrowProxy.add("rigidbody", kinematicRigidBody);
+  arrowProxy.add("collider", collider);
 
-  scale.set(1, 1, 1);
-
-  return bulletProxy as Entity;
+  return arrowProxy as Entity;
 }

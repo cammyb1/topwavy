@@ -83,20 +83,20 @@ async function preloadAssets(): Promise<LoadedAssets> {
 }
 
 async function preloadUI(): Promise<LoadedUIElements> {
-  const screens = [
-    "StartScreen",
-    "PauseScreen",
-    "FinishScreen",
-    "OptionsScreen",
-    "WaveInfo",
-  ];
+  const screens: { [k: string]: string } = {
+    start: "StartScreen",
+    pause: "PauseScreen",
+    finish: "FinishScreen",
+    options: "OptionsScreen",
+    wave_info: "WaveInfo",
+  };
   let loaded_screens: LoadedUIElements = {};
 
-  for (let ui of screens) {
-    const data = await loadUI(ui);
+  for (let ui in screens) {
+    const data = await loadUI(screens[ui]);
 
     const dom = document.createElement("div");
-    if (ui.includes("Screen")) {
+    if (screens[ui].includes("Screen")) {
       dom.className = "full-screen";
     }
 
@@ -143,8 +143,8 @@ export function mountExperience(state: GLState) {
 
     let sleepingWave: number | undefined;
 
-    screens.WaveInfo.addEventListener("show", () => {
-      const waveInfo = screens.WaveInfo.getElementsByTagName("div")[0];
+    screens.wave_info.addEventListener("show", () => {
+      const waveInfo = screens.wave_info.getElementsByTagName("div")[0];
 
       if (sleepingWave) {
         clearTimeout(sleepingWave);

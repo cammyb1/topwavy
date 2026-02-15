@@ -52,6 +52,7 @@ export default function Player(world: World): Entity {
   phyInfo.rb.setTranslation(transform.position, true);
   phyInfo.rb.lockRotations(true, true);
   phyInfo.rb.setLinearDamping(0.25);
+  phyInfo.col.setTranslation(transform.position);
   phyInfo.col.setFriction(0.7);
 
   // Animation States

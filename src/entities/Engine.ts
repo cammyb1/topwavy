@@ -114,31 +114,31 @@ export function Engine(state: GLState, world: World): Entity {
     name: "idle",
     enter() {
       const screens = proxy.get<LoadedUIElements>("screens");
-      uiContainer.appendChild(screens.StartScreen);
+      uiContainer.appendChild(screens.start);
       startScreenLogic(proxy);
     },
     exit() {
       const screens = proxy.get<LoadedUIElements>("screens");
-      uiContainer.removeChild(screens.StartScreen);
+      uiContainer.removeChild(screens.start);
     },
   };
   const OPTIONS_STATE: State = {
     name: "options",
     enter() {
       const screens = proxy.get<LoadedUIElements>("screens");
-      uiContainer.appendChild(screens.OptionsScreen);
+      uiContainer.appendChild(screens.options);
       optionsScreenLogic(proxy);
     },
     exit() {
       const screens = proxy.get<LoadedUIElements>("screens");
-      uiContainer.removeChild(screens.OptionsScreen);
+      uiContainer.removeChild(screens.options);
     },
   };
   const PAUSED_STATE: State = {
     name: "paused",
     enter() {
       const screens = proxy.get<LoadedUIElements>("screens");
-      uiContainer.appendChild(screens.PauseScreen);
+      uiContainer.appendChild(screens.pause);
       Input.off("down", onPause);
       setTimeout(() => {
         Input.on("down", onPause);
@@ -146,7 +146,7 @@ export function Engine(state: GLState, world: World): Entity {
     },
     exit() {
       const screens = proxy.get<LoadedUIElements>("screens");
-      uiContainer.removeChild(screens.PauseScreen);
+      uiContainer.removeChild(screens.pause);
       Input.off("down", onPause);
     },
   };
@@ -154,7 +154,7 @@ export function Engine(state: GLState, world: World): Entity {
     name: "start",
     enter(_prev) {
       if (_prev && _prev.name === "idle") {
-        const info = proxy.get<LoadedUIElements>("screens").WaveInfo;
+        const info = proxy.get<LoadedUIElements>("screens").wave_info;
         if (!uiContainer.contains(info)) {
           uiContainer.appendChild(info);
           info.dispatchEvent(showWaveEvent);
@@ -179,13 +179,16 @@ export function Engine(state: GLState, world: World): Entity {
     name: "finish",
     enter() {
       const screens = proxy.get<LoadedUIElements>("screens");
-      uiContainer.appendChild(screens.FinishScreen);
+      uiContainer.appendChild(screens.finish);
     },
     exit() {
       const screens = proxy.get<LoadedUIElements>("screens");
-      uiContainer.removeChild(screens.FinishScreen);
+      uiContainer.removeChild(screens.finish);
     },
   };
+
+  // Hide debug mesh
+  RapierEngine.debugMesh.visible = false;
 
   const stateMachine = new FiniteState();
   stateMachine.register(IDLE_STATE);

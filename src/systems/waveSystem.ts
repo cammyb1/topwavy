@@ -1,12 +1,16 @@
 import { Time, World, type Entity, type System } from "@jael-ecs/core";
 import Enemy from "../entities/Enemy";
-import { Vector3 } from "three";
 import { FiniteState, type State } from "../helpers/state";
-import { destroyEntityWithCollider, PRIORITY_LIST } from "../utils";
+import {
+  destroyEntityWithCollider,
+  PRIORITY_LIST,
+  randomIn3DCircle,
+} from "../utils";
 import { game, type WaveConfig } from "../store";
 import { RigidBody } from "@dimforge/rapier3d";
 import { type LoadedUIElements } from "../game";
 import { showWaveEvent } from "../entities/Engine";
+import { Group } from "three";
 
 export default function WaveSystem(world: World): System {
   const engine = world.include("isEngine").entities[0];
@@ -16,7 +20,6 @@ export default function WaveSystem(world: World): System {
 
   const enemyPool: number[] = [];
   const spawnRate = 1;
-  const randomPosition = new Vector3();
 
   let spawnedEnemies = 0;
   let maxEnemies = 0;
@@ -31,7 +34,13 @@ export default function WaveSystem(world: World): System {
     maxEnemies = waveConfig.enemiesPerWave;
   });
 
-  function createEnemy(pos: Vector3) {
+  function createEnemy() {
+    if (playerQuery.size() <= 0) return;
+    const playerPos = playerQuery.entities[0].get<Group>("transform").position;
+    const pos = randomIn3DCircle({
+      radius: 10,
+      center: [playerPos.x, playerPos.z],
+    });
     const enemy = Enemy(world, pos);
 
     const rb = enemy.get<RigidBody>("rigidbody");
@@ -56,8 +65,7 @@ export default function WaveSystem(world: World): System {
     if (spawnedEnemies === maxEnemies) return;
 
     if (spawnTimer > spawnRate) {
-      randomPosition.set(Math.random() * 10, 0, Math.random() * 10);
-      createEnemy(randomPosition);
+      createEnemy();
       spawnTimer = 0;
     }
 
@@ -72,20 +80,22 @@ export default function WaveSystem(world: World): System {
     }
 
     if (spawnedEnemies >= maxEnemies && enemyPool.length <= 0) {
-      spawnedEnemies = 0;
       const waveContainer = document.getElementById("wave-n");
-      waveConfig.current += 1;
+      setTimeout(() => {
+        spawnedEnemies = 0;
+        waveConfig.current += 1;
 
-      if (waveConfig.current > waveConfig.maxWave) {
-        engine.get("state").setActiveState("finish");
-        return;
-      }
+        if (waveConfig.current > waveConfig.maxWave) {
+          engine.get("state").setActiveState("finish");
+          return;
+        }
 
-      if (waveContainer) {
-        waveContainer.innerHTML = waveConfig.current.toString();
-        screens.WaveInfo.dispatchEvent(showWaveEvent);
-      }
-      maxEnemies = waveConfig.enemiesPerWave * waveConfig.current;
+        if (waveContainer) {
+          waveContainer.innerHTML = waveConfig.current.toString();
+          screens.wave_info.dispatchEvent(showWaveEvent);
+        }
+        maxEnemies = waveConfig.enemiesPerWave * waveConfig.current;
+      }, waveConfig.sleepTime * 1000);
     }
   };
 

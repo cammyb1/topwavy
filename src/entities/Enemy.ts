@@ -60,6 +60,7 @@ export default function Enemy(world: World, startingPos?: Vector3): Entity {
   phyInfo.rb.lockRotations(true, true);
   phyInfo.rb.setLinearDamping(0.25);
   phyInfo.col.setFriction(0.7);
+  phyInfo.col.setTranslation(transform.position);
 
   const defaultAnim = "idle";
   const mixer = new AnimationMixer(transform);
