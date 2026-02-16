@@ -90,7 +90,7 @@ export default function PlayerController(world: World): System {
       const rb = arrowE.get<RigidBody & RBUserdataEvents>("rigidbody");
       vel.y = rb.linvel().y;
       vel.copy(velocity);
-      arrowTransform.lookAt(velocity);
+      arrowTransform.lookAt(arrowTransform.position.clone().add(velocity));
 
       rb.userData = {
         onCollisionStart: (e: Entity) => {
@@ -125,7 +125,7 @@ export default function PlayerController(world: World): System {
           const col = e.get<Collider>("collider");
           transform.visible = false;
           col.setEnabled(false);
-          e.add("hidden", true)
+          e.add("hidden", true);
         }
       },
       onCollisionEnd: (e: Entity) => {

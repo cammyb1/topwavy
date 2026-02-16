@@ -18,10 +18,10 @@ export default function GameEngine(world: World): System {
   const mixers = world.include("mixer");
   const engine = world.include("isEngine").entities[0];
   const playerQuery = world.include("isPlayer");
-  const hiddenBundles = world.include("isBundle", "hidden"); // !FIXME: Fix jael remove query update
+  const hiddenBundles = world.include("isBundle", "hidden");
 
   const bundlePool: Entity[] = [];
-  const maxBundles = 2;
+  const maxBundles = 4;
   const bundleSpawnRate = 2;
   let activeBundles = 0;
   let bundleSpawnTimer = 0;
@@ -49,9 +49,9 @@ export default function GameEngine(world: World): System {
       rb.setTranslation(startPos, true);
       transform.position.copy(startPos);
       transform.visible = true;
+      bundle.remove("hidden");
     }
 
-    bundle.remove("hidden");
     bundlePool.push(bundle);
   }
 
@@ -86,6 +86,11 @@ export default function GameEngine(world: World): System {
           spawnBundle();
         }
       }
+
+      if (hiddenBundles.size() === maxBundles) {
+        activeBundles = 0;
+      }
+
       // Lifetime entities
       lifeTimers.entities.forEach((entity: Entity) => {
         const lifetime = entity.get("lifetime");
