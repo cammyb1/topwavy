@@ -62,7 +62,7 @@ export default function PlayerController(world: World) {
     const machine = playerQuery.entities[0].getComponent("machine");
     health.current -= dmg;
     machine.setActiveState("hit");
-    console.log("Damagin player with ", dmg, " current Health: ", health);
+    updatePlayerHTML();
   }
 
   function shootArrow() {
@@ -103,6 +103,17 @@ export default function PlayerController(world: World) {
     }
   }
 
+  function updatePlayerHTML() {
+    const health = playerQuery.entities[0].getComponent("health");
+    const hp_container = document.getElementById("hp-value");
+
+    if (hp_container) {
+      const percentage = (health.current / health.max) * 100;
+      hp_container.style.width = `${percentage}%`;
+      hp_container.innerHTML = `${health.current}`;
+    }
+  }
+
   function updateArrowHTML() {
     const arrows_left_container = document.getElementById("arrows-left");
     const arrows_total_container = document.getElementById("arrows-total");
@@ -122,6 +133,7 @@ export default function PlayerController(world: World) {
 
     if (!rb) return;
 
+    updatePlayerHTML();
     updateArrowHTML();
 
     rb.userData = {
@@ -129,6 +141,7 @@ export default function PlayerController(world: World) {
         if (e.getComponent("isEnemy")) {
           const enemyMachine = e.getComponent<FiniteState>("machine");
           enemyMachine?.setActiveState("punch");
+          damagePlayer(e.getComponent("damage") || 0);
           collidingEntity = e;
         }
         if (e.getComponent("isBundle")) {

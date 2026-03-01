@@ -16,7 +16,7 @@ export default function WaveSystem(world: World) {
     "screens",
   ) as LoadedUIElements;
 
-  const enemyPool: number[] = [];
+  let enemyPool: number[] = [];
   const spawnRate = 1;
 
   let spawnedEnemies = 0;
@@ -33,12 +33,28 @@ export default function WaveSystem(world: World) {
     spawnWaveTimer = waveConfig.sleepTime;
   });
 
-  function updateWaveHTML() {
+  function updateHTML() {
     const waveContainer = document.getElementById("wave-n");
+    const enemiesLeft = document.getElementById("enemies-left");
+    const enemiesTotal = document.getElementById("enemies-total");
 
-    if (waveContainer) {
-      waveContainer.innerHTML = waveConfig.current.toString();
-    }
+    return {
+      number() {
+        if (waveContainer) {
+          waveContainer.innerHTML = waveConfig.current.toString();
+        }
+      },
+      enemies() {
+        console.log(enemyPool.length);
+        if (enemiesLeft) {
+          enemiesLeft.innerHTML = enemyPool.length.toString();
+        }
+
+        if (enemiesTotal) {
+          enemiesTotal.innerHTML = maxEnemies.toString();
+        }
+      },
+    };
   }
 
   function createEnemy() {
@@ -71,6 +87,8 @@ export default function WaveSystem(world: World) {
 
     enemyPool.push(enemy.id);
     spawnedEnemies += 1;
+
+    updateHTML().enemies();
   }
 
   function spawnNextWave() {
@@ -93,6 +111,8 @@ export default function WaveSystem(world: World) {
       enemyPool.splice(idx, 1);
     }
 
+    updateHTML().enemies();
+
     if (spawnedEnemies >= maxEnemies && enemyPool.length <= 0) {
       if (waveConfig.current + 1 > waveConfig.maxWave) {
         engine.getComponent("state").setActiveState("finish");
@@ -105,7 +125,7 @@ export default function WaveSystem(world: World) {
         spawnedEnemies = 0;
         waveConfig.current += 1;
 
-        updateWaveHTML();
+        updateHTML().number();
         screens.playing.dispatchEvent(showWaveEvent);
         maxEnemies = waveConfig.enemiesPerWave * waveConfig.current;
       }, waveConfig.sleepTime * 1000);
@@ -115,7 +135,8 @@ export default function WaveSystem(world: World) {
   stateMachine?.on("change", (prev: State | undefined) => {
     if (!prev) return;
     if (stateMachine.active?.name === "playing") {
-      updateWaveHTML();
+      updateHTML().number();
+      updateHTML().enemies();
     }
 
     if (prev.name === "finish") {
@@ -124,6 +145,7 @@ export default function WaveSystem(world: World) {
         enemyPool.forEach((id) => {
           destroyEntityWithCollider(id, world);
         });
+        enemyPool = [];
         enemyQuery.on("removed", onActiveWaveRemove);
       }
 
@@ -132,6 +154,8 @@ export default function WaveSystem(world: World) {
       maxEnemies = waveConfig.enemiesPerWave;
       spawnTimer = 0;
       waveConfig.current = 1;
+      updateHTML().number();
+      updateHTML().enemies();
     }
   });
 
@@ -142,6 +166,10 @@ export default function WaveSystem(world: World) {
     if (playerQuery.size() > 0) {
       if (waveConfig.current <= waveConfig.maxWave) {
         if (spawnWaveTimer <= waveConfig.sleepTime) {
+          const spawnTimerContainer = document.getElementById("wave-nt");
+          if (spawnTimerContainer) {
+            spawnTimerContainer.innerHTML = `${Math.abs(spawnWaveTimer - waveConfig.sleepTime).toFixed(1)}s`;
+          }
           spawnWaveTimer += Time.delta;
         }
 

@@ -13,7 +13,6 @@ import { FiniteState, type State } from "../helpers/state";
 import { type LoadedUIElements } from "../game";
 import playingScreenLogic from "../ui/playingScreenLogic";
 import optionsScreenLogic from "../ui/optionsScreenLogic";
-import finishScreenLogic from "../ui/finishScreenLogic";
 import idleScreenLogic from "../ui/idleScreenLogic";
 
 export const showWaveEvent = new Event("show-wave");
@@ -101,6 +100,12 @@ export function Engine(state: GLState, world: World): Entity {
     }
   };
 
+  const onFinish = (e: { code: string; repeated: boolean }) => {
+    if (e.code === "Space" && !e.repeated) {
+      stateMachine.setActiveState("playing");
+    }
+  };
+
   const onShowWaveEvent = () => {
     const waveInfo = document.getElementById("wave-info");
 
@@ -180,7 +185,9 @@ export function Engine(state: GLState, world: World): Entity {
 
       screens.playing.addEventListener("show-wave", onShowWaveEvent);
 
-      Input.keyboard.on("down", onPause);
+      setTimeout(() => {
+        Input.keyboard.on("down", onPause);
+      }, 100);
 
       screens.playing.dispatchEvent(showWaveEvent);
     },
@@ -197,12 +204,13 @@ export function Engine(state: GLState, world: World): Entity {
       const screens = proxy.getComponent<LoadedUIElements>("screens");
       if (!screens) return;
       Input.keyboard.off("down", onPause);
+      Input.keyboard.on("down", onFinish);
       uiContainer.appendChild(screens.finish);
-      finishScreenLogic(proxy);
     },
     exit() {
       const screens = proxy.getComponent<LoadedUIElements>("screens");
       if (!screens) return;
+      Input.keyboard.off("down", onFinish);
       uiContainer.removeChild(screens.finish);
     },
   };

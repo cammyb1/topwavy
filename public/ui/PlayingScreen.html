@@ -1,7 +1,23 @@
 <div>
-  <div id="wave-info" class="wave">
-    <div>WAVE</div>
-    <span id="wave-n">1</span>
+  <div class="wave-container">
+    <div class="wave">
+      <div>
+        Enemies
+        <span id="enemies-left">0</span>
+        /
+        <span id="enemies-total">0</span>
+      </div>
+    </div>
+    <div class="info" id="wave-info">
+      <div>WAVE</div>
+      <span id="wave-n">1</span>
+    </div>
+    <div class="wave">
+      <div>Next: <span id="wave-nt">1s</span></div>
+    </div>
+  </div>
+  <div class="hp-bar">
+    <div id="hp-value">100</div>
   </div>
   <div class="arrow-counter">
     <span>Arrows: </span>
@@ -16,19 +32,19 @@
 <style>
   @keyframes slide-down {
     from {
-      top: -20%;
+      transform: translateY(-100%);
     }
     to {
-      top: 0;
+      transform: translateY(0);
     }
   }
 
   @keyframes slide-up {
     from {
-      top: 0;
+      transform: translateY(0);
     }
     to {
-      top: -20%;
+      transform: translateY(-100%);
     }
   }
 
@@ -45,6 +61,30 @@
     text-transform: none;
   }
 
+  .hp-bar {
+    position: absolute;
+    bottom: 0;
+    width: 10rem;
+    height: 2.5rem;
+    bottom: 3rem;
+    background: var(--secondary-bg-color);
+    outline: 4px solid var(--secondary-bg-color);
+    transform: translate(-50%);
+    overflow: hidden;
+
+    > #hp-value {
+      background: tomato;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      overflow: hidden;
+      transition: width 0.25s;
+      font-size: 35px;
+      justify-content: center;
+      align-items: center;
+    }
+  }
+
   .slide-down {
     animation: slide-down 2s forwards;
   }
@@ -53,18 +93,38 @@
     animation: slide-up 2s forwards;
   }
 
-  .wave {
+  .wave-container {
     position: absolute;
+    display: flex;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%);
+    font-size: 25px;
+    text-transform: none;
+  }
+
+  .wave {
     display: flex;
     background: var(--secondary-bg-color);
     gap: 0.5rem;
     padding: 1rem;
     color: var(--primary-text-color);
-    width: 200px;
     font-size: 25px;
-    top: -20%;
-    left: 50%;
-    transform: translate(-50%);
+    flex: 0;
+
+    #wave-nt, #enemies-total {
+      color: var(--primary-bg-color);
+    }
+  }
+
+  .info {
+    display: flex;
+    background: var(--secondary-bg-color);
+    gap: 0.5rem;
+    padding: 1rem;
+    color: var(--primary-text-color);
+    font-size: 25px;
+    flex: 1;
   }
 
   #arrows-total {

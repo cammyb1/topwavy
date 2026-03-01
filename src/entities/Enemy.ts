@@ -39,7 +39,7 @@ export default function Enemy(world: World, startingPos?: Vector3): Entity {
       transform: model.scene,
       velocity: new Vector3(),
       health: { current: 100 },
-      damage: 10,
+      damage: 6,
       isEnemy: true,
     };
 

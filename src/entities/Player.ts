@@ -37,7 +37,7 @@ export default function Player(world: World): Entity {
     const playerSchema = {
       transform: model.scene,
       velocity: new Vector3(),
-      health: { current: 100 },
+      health: { current: 100, max: 100 },
       isPlayer: true,
     };
 
