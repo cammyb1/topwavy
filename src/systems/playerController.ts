@@ -1,15 +1,10 @@
-import { Time, type Entity, type System, type World } from "@jael-ecs/core";
-import { Group, Plane, Raycaster, Vector3 } from "three";
+import { Time, type Entity, type World, Input } from "@jael-ecs/core";
+import { Group, Plane, Raycaster, Vector2, Vector3 } from "three";
 import type { GLState } from "../mount3";
 import Arrow from "../entities/Arrow";
-import { Input } from "../helpers/Input";
 import { FiniteState } from "../helpers/state";
-import { Collider, RigidBody } from "@dimforge/rapier3d";
-import {
-  destroyEntityWithCollider,
-  isGameActive,
-  PRIORITY_LIST,
-} from "../utils";
+import { RigidBody } from "@dimforge/rapier3d";
+import { destroyEntityWithCollider, isGameActive } from "../utils";
 import type { RBUserdataEvents } from "./collisionSystem";
 
 const zeroVector = new Vector3();
@@ -17,7 +12,7 @@ const lookAtVector = new Vector3();
 const directionFromPlayer = new Vector3();
 const bowPoint = new Vector3();
 
-export default function PlayerController(world: World): System {
+export default function PlayerController(world: World) {
   const playerQuery = world.include("isPlayer");
   const engine = world.include("isEngine").entities[0];
 
@@ -28,16 +23,16 @@ export default function PlayerController(world: World): System {
   const direction = new Vector3();
   const worldDir = new Vector3();
 
-  const speed = 1.25;
+  const speed = 1.75;
   const bulletSpeed = 10;
-  const shootingRate = 0.2;
-  const damageTickerRate = 0.75;
+  const shootingRate = 0.1;
+  const damageTickerRate = 1;
   const bulletOffset = new Vector3(0, 0, -0.2);
-  const arrowMag = 30;
+  const arrowMag = 50;
 
+  let speedMultiplier = 1.75;
   let shooting = false;
   let shootingStarted = 0;
-  let multiplier = 1.75;
   let currentArrows = arrowMag;
 
   let recievingDmgTimer = 0;
@@ -48,10 +43,8 @@ export default function PlayerController(world: World): System {
     shooting = true;
 
     const player = playerQuery.entities[0];
-    const machine = player.get<FiniteState>("machine");
-    machine.setActiveState("draw_bow");
-
-    shootArrow();
+    const machine = player.getComponent<FiniteState>("machine");
+    machine?.setActiveState("draw_bow");
   });
 
   Input.pointer.on("up", () => {
@@ -59,14 +52,14 @@ export default function PlayerController(world: World): System {
     shooting = false;
 
     const player = playerQuery.entities[0];
-    const machine = player.get<FiniteState>("machine");
-    machine.setActiveState("release_bow");
+    const machine = player.getComponent<FiniteState>("machine");
+    machine?.setActiveState("release_bow");
   });
 
   function damagePlayer(dmg: number) {
     if (!playerQuery.entities[0]) return;
-    const health = playerQuery.entities[0].get("health");
-    const machine = playerQuery.entities[0].get("machine");
+    const health = playerQuery.entities[0].getComponent("health");
+    const machine = playerQuery.entities[0].getComponent("machine");
     health.current -= dmg;
     machine.setActiveState("hit");
     console.log("Damagin player with ", dmg, " current Health: ", health);
@@ -75,7 +68,7 @@ export default function PlayerController(world: World): System {
   function shootArrow() {
     if (currentArrows <= 0) return;
     const player = playerQuery.entities[0];
-    const transform = player.get<Group>("transform");
+    const transform = player.getComponent<Group>("transform") as Group;
     const bow = transform.getObjectByName("bow_withString");
     if (bow) {
       bow.updateMatrixWorld(true);
@@ -85,53 +78,69 @@ export default function PlayerController(world: World): System {
       const startPos = bowPoint.clone().add(bulletOffset.clone().add(worldDir));
       const velocity = worldDir.clone().multiplyScalar(bulletSpeed);
       const arrowE = Arrow(world, startPos);
-      const arrowTransform = arrowE.get<Group>("transform");
-      const vel = arrowE.get<Vector3>("velocity");
-      const rb = arrowE.get<RigidBody & RBUserdataEvents>("rigidbody");
+      const arrowTransform = arrowE.getComponent<Group>("transform") as Group;
+      const vel = arrowE.getComponent<Vector3>("velocity");
+      const rb = arrowE.getComponent<RigidBody & RBUserdataEvents>("rigidbody");
+      if (!rb || !vel) return;
+
       vel.y = rb.linvel().y;
       vel.copy(velocity);
       arrowTransform.lookAt(arrowTransform.position.clone().add(velocity));
 
       rb.userData = {
         onCollisionStart: (e: Entity) => {
-          if (e.get("isEnemy")) {
-            const damage = arrowE.get<number>("damage");
-            e.get("health").current -= damage;
+          if (e.getComponent("isEnemy")) {
+            const damage = arrowE.getComponent<number>("damage") || 0;
+            e.getComponent("health").current -= damage;
             destroyEntityWithCollider(arrowE.id, world);
           }
         },
       };
 
       currentArrows -= 1;
+
+      updateArrowHTML();
+    }
+  }
+
+  function updateArrowHTML() {
+    const arrows_left_container = document.getElementById("arrows-left");
+    const arrows_total_container = document.getElementById("arrows-total");
+
+    if (arrows_left_container) {
+      arrows_left_container.innerHTML = currentArrows.toString();
+    }
+
+    if (arrows_total_container) {
+      arrows_total_container.innerHTML = arrowMag.toString();
     }
   }
 
   playerQuery.on("added", (id: number) => {
     const player = world.getEntity(id) as Entity;
-    const rb = player.get("rigidbody");
+    const rb = player.getComponent("rigidbody");
 
     if (!rb) return;
 
+    updateArrowHTML();
+
     rb.userData = {
       onCollisionStart: (e: Entity) => {
-        if (e.get("isEnemy")) {
-          const enemyMachine = e.get<FiniteState>("machine");
-          enemyMachine.setActiveState("punch");
+        if (e.getComponent("isEnemy")) {
+          const enemyMachine = e.getComponent<FiniteState>("machine");
+          enemyMachine?.setActiveState("punch");
           collidingEntity = e;
         }
-        if (e.get("isBundle")) {
+        if (e.getComponent("isBundle")) {
           currentArrows = arrowMag;
-          const transform = e.get<Group>("transform");
-          const col = e.get<Collider>("collider");
-          transform.visible = false;
-          col.setEnabled(false);
-          e.add("hidden", true);
+          e.addComponent("hidden", true);
+          updateArrowHTML();
         }
       },
       onCollisionEnd: (e: Entity) => {
-        if (e.get("isEnemy")) {
-          const enemyMachine = e.get<FiniteState>("machine");
-          enemyMachine.setActiveState("walk");
+        if (e.getComponent("isEnemy")) {
+          const enemyMachine = e.getComponent<FiniteState>("machine");
+          enemyMachine?.setActiveState("walk");
           recievingDmgTimer = 0;
           collidingEntity = undefined;
         }
@@ -139,88 +148,98 @@ export default function PlayerController(world: World): System {
     };
   });
 
-  return {
-    priority: PRIORITY_LIST.REST,
-    update() {
-      const gl = engine.get<GLState>("gl");
-      const player = playerQuery.entities[0];
+  const gameMachine = engine.getComponent<FiniteState>("state");
 
-      if (player && gl) {
-        const transform = player.get<Group>("transform");
-        const velocity = player.get<Vector3>("velocity");
-        const machine = player.get<FiniteState>("machine");
-        const rb = player.get<RigidBody>("rigidbody");
+  gameMachine?.on("change", () => {
+    if (gameMachine?.active?.name === "finish") {
+      shooting = false;
+      currentArrows = arrowMag;
+      shootingStarted = 0;
+      recievingDmgTimer = 0;
+      updateArrowHTML();
+    }
+  });
 
-        // Movement
-        if (Input.isPressed("forward")) {
-          direction.z = -1;
-        }
-        if (Input.isPressed("backward")) {
-          direction.z = 1;
-        }
-        if (Input.isPressed("left")) {
-          direction.x = -1;
-        }
-        if (Input.isPressed("right")) {
-          direction.x = 1;
-        }
+  return () => {
+    const gl = engine.getComponent<GLState>("gl");
+    const player = playerQuery.entities[0];
 
-        let activeShooting = shooting && currentArrows > 0;
+    if (player && gl) {
+      const transform = player.getComponent<Group>("transform") as Group;
+      const velocity = player.getComponent<Vector3>("velocity");
+      const machine = player.getComponent<FiniteState>("machine");
+      const rb = player.getComponent<RigidBody>("rigidbody");
 
-        if (activeShooting) {
-          shootingStarted += Time.delta;
-          if (shootingStarted > shootingRate) {
-            shootArrow();
-            shootingStarted = 0;
-          }
-        }
-
-        if (collidingEntity) {
-          recievingDmgTimer += Time.delta;
-          if (recievingDmgTimer > damageTickerRate) {
-            recievingDmgTimer = 0;
-            damagePlayer(collidingEntity.get("damage"));
-          }
-        }
-
-        const isRunning = Input.isPressed("run");
-
-        if (direction.equals(zeroVector)) {
-          machine.setActiveState("idle");
-        } else if (!isRunning) {
-          machine.setActiveState("walk");
-        } else {
-          machine.setActiveState("run");
-        }
-
-        if (isRunning) {
-          multiplier = 1.25;
-        } else {
-          multiplier = 1;
-        }
-
-        velocity.x = direction.x * speed * multiplier;
-        velocity.z = direction.z * speed * multiplier;
-        velocity.y = rb.linvel().y;
-        direction.set(0, 0, 0);
-
-        caster.setFromCamera(Input.pointer.position, gl.camera);
-        caster.ray.intersectPlane(plane, hit);
-        const distanceToHit = hit.distanceTo(transform.position);
-
-        if (distanceToHit < 2) {
-          directionFromPlayer.set(0, 0, 0);
-          directionFromPlayer.subVectors(hit, transform.position).normalize();
-          hit
-            .copy(transform.position)
-            .add(directionFromPlayer.multiplyScalar(2));
-        }
-
-        hit.y = 0;
-
-        lookAtVector.lerp(hit, Time.delta * 15);
-        transform.lookAt(lookAtVector);
+      // Movement
+      if (Input.keyboard.isPressed("forward")) {
+        direction.z = -1;
       }
-    },
+      if (Input.keyboard.isPressed("backward")) {
+        direction.z = 1;
+      }
+      if (Input.keyboard.isPressed("left")) {
+        direction.x = -1;
+      }
+      if (Input.keyboard.isPressed("right")) {
+        direction.x = 1;
+      }
+
+      let activeShooting = shooting && currentArrows > 0;
+
+      if (activeShooting) {
+        shootingStarted += Time.delta;
+        if (shootingStarted > shootingRate) {
+          shootArrow();
+          shootingStarted = 0;
+        }
+      }
+
+      if (collidingEntity) {
+        recievingDmgTimer += Time.delta;
+        if (recievingDmgTimer > damageTickerRate) {
+          recievingDmgTimer = 0;
+          damagePlayer(collidingEntity.getComponent("damage") || 0);
+        }
+      }
+
+      const isRunning = Input.keyboard.isPressed("run");
+
+      if (direction.equals(zeroVector)) {
+        machine?.setActiveState("idle");
+      } else if (!isRunning) {
+        machine?.setActiveState("walk");
+      } else {
+        machine?.setActiveState("run");
+      }
+
+      if (isRunning) {
+        speedMultiplier = 1.25;
+      } else {
+        speedMultiplier = 1;
+      }
+
+      if (velocity && rb) {
+        velocity.x = direction.x * speed * speedMultiplier;
+        velocity.z = direction.z * speed * speedMultiplier;
+        velocity.y = rb.linvel().y;
+      }
+
+      direction.set(0, 0, 0);
+
+      caster.setFromCamera(Input.pointer.position as Vector2, gl.camera);
+      caster.ray.intersectPlane(plane, hit);
+      const distanceToHit = hit.distanceTo(transform.position);
+
+      if (distanceToHit < 2) {
+        directionFromPlayer.set(0, 0, 0);
+        directionFromPlayer.subVectors(hit, transform.position).normalize();
+        hit.copy(transform.position).add(directionFromPlayer.multiplyScalar(2));
+      }
+
+      hit.y = 0;
+
+      lookAtVector.lerp(hit, Time.delta * 15);
+      transform.lookAt(lookAtVector);
+    }
   };
 }

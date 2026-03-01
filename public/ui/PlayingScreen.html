@@ -1,0 +1,73 @@
+<div>
+  <div id="wave-info" class="wave">
+    <div>WAVE</div>
+    <span id="wave-n">1</span>
+  </div>
+  <div class="arrow-counter">
+    <span>Arrows: </span>
+
+    <div>
+      <span id="arrows-left">0</span>
+      /
+      <span id="arrows-total">0</span>
+    </div>
+  </div>
+</div>
+<style>
+  @keyframes slide-down {
+    from {
+      top: -20%;
+    }
+    to {
+      top: 0;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      top: 0;
+    }
+    to {
+      top: -20%;
+    }
+  }
+
+  .arrow-counter {
+    position: absolute;
+    display: flex;
+    gap: 0.5rem;
+    font-size: 2.5rem;
+    background: var(--secondary-bg-color);
+    color: var(--primary-text-color);
+    padding: 0.5rem 1rem;
+    left: 2rem;
+    bottom: 2rem;
+    text-transform: none;
+  }
+
+  .slide-down {
+    animation: slide-down 2s forwards;
+  }
+
+  .slide-up {
+    animation: slide-up 2s forwards;
+  }
+
+  .wave {
+    position: absolute;
+    display: flex;
+    background: var(--secondary-bg-color);
+    gap: 0.5rem;
+    padding: 1rem;
+    color: var(--primary-text-color);
+    width: 200px;
+    font-size: 25px;
+    top: -20%;
+    left: 50%;
+    transform: translate(-50%);
+  }
+
+  #arrows-total {
+    color: var(--primary-bg-color);
+  }
+</style>

@@ -1,4 +1,3 @@
-import type { World, Entity } from "@jael-ecs/core";
 import {
   AnimationAction,
   AnimationMixer,
@@ -10,10 +9,11 @@ import {
 import { addState, createDynamicBox } from "../utils";
 import { type LoadedAssets } from "../game";
 import { FiniteState, type AnimationState } from "../helpers/state";
+import { Input, World, type Entity } from "@jael-ecs/core";
 
 export default function Player(world: World): Entity {
   const engine = world.include("isEngine").entities[0];
-  const assets = engine.get<LoadedAssets>("assets");
+  const assets = engine.getComponent<LoadedAssets>("assets") as LoadedAssets;
   const model = assets.loaded_models.ranger;
   const bow = assets.loaded_models.bow;
 
@@ -47,7 +47,7 @@ export default function Player(world: World): Entity {
   const playerId = world.instantiate("player") as number;
   const player: Entity = world.getEntity(playerId) as Entity;
   const phyInfo = createDynamicBox(new Vector2(0.5, 0.5));
-  const transform: Group = player.get<Group>("transform");
+  const transform: Group = player.getComponent<Group>("transform") as Group;
   transform.position.set(0, 0, 0);
   phyInfo.rb.setTranslation(transform.position, true);
   phyInfo.rb.lockRotations(true, true);
@@ -79,6 +79,15 @@ export default function Player(world: World): Entity {
   const DrawBowAction = "Ranged_Bow_Draw";
   const ReleaseBowAction = "Ranged_Bow_Release";
 
+  // Register inputs
+  Input.keyboard.registerMultiple({
+    forward: { keys: ["KeyW", "ArrowUp"] },
+    backward: { keys: ["KeyS", "ArrowDown"] },
+    left: { keys: ["KeyA", "ArrowLeft"] },
+    right: { keys: ["KeyD", "ArrowRight"] },
+    run: { keys: ["ShiftLeft"] },
+  });
+
   const machine = new FiniteState<AnimationState>();
   machine.register(addState(actions, "idle", IdleAction));
   machine.register(addState(actions, "walk", WalkAction));
@@ -89,10 +98,10 @@ export default function Player(world: World): Entity {
 
   machine.setActiveState(defaultAnim);
 
-  player.add("rigidbody", phyInfo.rb);
-  player.add("collider", phyInfo.col);
-  player.add("mixer", mixer);
-  player.add("machine", machine);
+  player.addComponent("rigidbody", phyInfo.rb);
+  player.addComponent("collider", phyInfo.col);
+  player.addComponent("mixer", mixer);
+  player.addComponent("machine", machine);
 
   return player;
 }

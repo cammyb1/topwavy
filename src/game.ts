@@ -17,6 +17,7 @@ import FileLoader from "./helpers/FileLoader";
 import CollisionSystem from "./systems/collisionSystem";
 import { isGameActive } from "./utils";
 import CameraSystem from "./systems/cameraSystem";
+import { Input } from "@jael-ecs/core";
 
 const gltfLoader = new GLTFLoader();
 const fileLoader = new FileLoader<Document>();
@@ -84,11 +85,11 @@ async function preloadAssets(): Promise<LoadedAssets> {
 
 async function preloadUI(): Promise<LoadedUIElements> {
   const screens: { [k: string]: string } = {
-    start: "StartScreen",
+    idle: "IdleScreen",
+    playing: "PlayingScreen",
     pause: "PauseScreen",
     finish: "FinishScreen",
     options: "OptionsScreen",
-    wave_info: "WaveInfo",
   };
   let loaded_screens: LoadedUIElements = {};
 
@@ -97,7 +98,11 @@ async function preloadUI(): Promise<LoadedUIElements> {
 
     const dom = document.createElement("div");
     if (screens[ui].includes("Screen")) {
-      dom.className = "full-screen";
+      dom.classList.add("full-screen");
+
+      if (ui === "playing") {
+        dom.classList.add("translucent");
+      }
     }
 
     dom.innerHTML = data.body.innerHTML;
@@ -110,7 +115,7 @@ async function preloadUI(): Promise<LoadedUIElements> {
 
 export function mountExperience(state: GLState) {
   // Default bg color
-  state.scene.background = new Color("grey");
+  state.scene.background = new Color("#423525");
 
   const world = new World();
 
@@ -123,6 +128,7 @@ export function mountExperience(state: GLState) {
   world.prefabManager.addCloner("clonable", (v) => v.clone());
   world.prefabManager.addCloner("skeletal", (v) => SkeletonUtils.clone(v));
 
+  let systems: Function[] = [];
   const engine = Engine(state, world);
   const uiContainer: HTMLElement = document.getElementById("ui") as HTMLElement;
   const loader: HTMLElement = document.getElementById("loader") as HTMLElement;
@@ -137,50 +143,27 @@ export function mountExperience(state: GLState) {
 
   promise.then(([assets, screens]: [LoadedAssets, LoadedUIElements]) => {
     uiContainer.removeChild(loader);
-    engine.add("assets", assets);
-    engine.add("screens", screens);
-    const machine = engine.get<FiniteState>("state");
+    engine.addComponent("assets", assets);
+    engine.addComponent("screens", screens);
+    const machine = engine.getComponent<FiniteState>("state");
 
-    let sleepingWave: number | undefined;
+    machine?.setActiveState("idle");
 
-    screens.wave_info.addEventListener("show", () => {
-      const waveInfo = screens.wave_info.getElementsByTagName("div")[0];
+    systems = [
+      GameEngine(world),
+      CollisionSystem(world),
+      PlayerController(world),
+      CameraSystem(world),
+      EnemyAI(world),
+      WaveSystem(world),
+    ];
 
-      if (sleepingWave) {
-        clearTimeout(sleepingWave);
-        waveInfo.classList.remove("slide-down");
-        waveInfo.classList.add("slide-up");
-        waveInfo.style.animationDuration = "0.2s";
-        sleepingWave = undefined;
-      } else {
-        waveInfo.classList.remove("slide-down");
-        waveInfo.classList.remove("slide-up");
-      }
-
-      // First sleep to make sure classList is removed
-      setTimeout(() => {
-        waveInfo.classList.remove("slide-up");
-        waveInfo.classList.add("slide-down");
-        sleepingWave = setTimeout(() => {
-          waveInfo.classList.remove("slide-down");
-          waveInfo.classList.add("slide-up");
-        }, 4000);
-      }, 100);
-    });
-
-    machine.setActiveState("idle");
-
-    world.addSystem(GameEngine(world));
-    world.addSystem(CollisionSystem(world));
-    world.addSystem(PlayerController(world));
-    world.addSystem(CameraSystem(world));
-    world.addSystem(EnemyAI(world));
-    world.addSystem(WaveSystem(world));
+    Input.connect();
 
     Time.on("update", () => {
       if (!isGameActive(engine)) return;
+      systems.forEach((system) => system());
       RapierEngine.step();
-      world.update();
     });
   });
 }

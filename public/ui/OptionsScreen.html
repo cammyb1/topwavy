@@ -5,7 +5,7 @@
   <div class="content">
     <div class="body">
       <div>
-        <h4>Wave configuration</h4>
+        <h4>Wave Config</h4>
       </div>
       <div>
         <form id="optionsForm">
@@ -30,3 +30,65 @@
     </div>
   </div>
 </div>
+<style>
+  .menu {
+    width: fit-content;
+    background: var(--secondary-bg-color);
+    overflow: hidden;
+    min-height: 350px;
+    min-width: 350px;
+    font-family: "Courier New", Courier, monospace;
+    display: flex;
+    flex-direction: column;
+
+    .header {
+      padding: 1rem;
+      color: var(--primary-text-color);
+      background: var(--primary-bg-color);
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .content {
+      padding: 1rem;
+      display: flex;
+      width: calc(100% - 2rem);
+      flex: 1;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-size: 20px;
+
+      form {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        > div {
+          display: flex;
+          justify-content: space-between;
+        }
+      }
+
+      .body {
+        flex: 1;
+      }
+
+      button {
+        background: transparent;
+        color: var(--primary-text-color);
+        font-size: 2rem;
+        border-style: none;
+        font-family: "Courier New", Courier, monospace;
+        padding: 1rem;
+        transition: font-size 0.5s;
+        cursor: pointer;
+      }
+      button:hover {
+        text-shadow: 2.5px 2.5px 2px rgb(0, 0, 0);
+        font-size: 2.1rem;
+      }
+      button:active {
+        color: var(--primary-bg-color);
+      }
+    }
+  }
+</style>

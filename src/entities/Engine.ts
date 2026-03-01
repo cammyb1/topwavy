@@ -1,4 +1,3 @@
-import type { World } from "@jael-ecs/core";
 import type { GLState } from "../mount3";
 import {
   AmbientLight,
@@ -9,15 +8,15 @@ import {
   Vector3,
 } from "three";
 import RapierEngine from "../helpers/rapier";
-import type { Entity } from "@jael-ecs/core";
+import { type World, type Entity, Input } from "@jael-ecs/core";
 import { FiniteState, type State } from "../helpers/state";
-import Player from "./Player";
-import { Input } from "../helpers/Input";
 import { type LoadedUIElements } from "../game";
-import startScreenLogic from "../ui/startScreenLogic";
+import playingScreenLogic from "../ui/playingScreenLogic";
 import optionsScreenLogic from "../ui/optionsScreenLogic";
+import finishScreenLogic from "../ui/finishScreenLogic";
+import idleScreenLogic from "../ui/idleScreenLogic";
 
-export const showWaveEvent = new Event("show");
+export const showWaveEvent = new Event("show-wave");
 
 export function Engine(state: GLState, world: World): Entity {
   const engineId = world.create();
@@ -92,97 +91,118 @@ export function Engine(state: GLState, world: World): Entity {
   state.scene.add(RapierEngine.debugMesh);
 
   const uiContainer: HTMLElement = document.getElementById("ui") as HTMLElement;
-
-  // Register inputs
-  Input.registerMultiple({
-    forward: { keys: ["KeyW", "ArrowUp"] },
-    backward: { keys: ["KeyS", "ArrowDown"] },
-    left: { keys: ["KeyA", "ArrowLeft"] },
-    right: { keys: ["KeyD", "ArrowRight"] },
-    run: { keys: ["ShiftLeft"] },
-  });
+  let sleepingWave: number | undefined;
 
   const onPause = (e: { code: string; repeated: boolean }) => {
     if (e.code === "Space" && !e.repeated) {
       stateMachine.setActiveState(
-        stateMachine.active?.name === "paused" ? "start" : "paused",
+        stateMachine.active?.name === "playing" ? "paused" : "playing",
       );
     }
   };
+
+  const onShowWaveEvent = () => {
+    const waveInfo = document.getElementById("wave-info");
+
+    if (waveInfo) {
+      if (sleepingWave) {
+        clearTimeout(sleepingWave);
+        waveInfo.classList.remove("slide-down");
+        waveInfo.classList.add("slide-up");
+        waveInfo.style.animationDuration = "0.2s";
+        sleepingWave = undefined;
+      } else {
+        waveInfo.classList.remove("slide-down");
+        waveInfo.classList.remove("slide-up");
+      }
+
+      // First sleep to make sure classList is removed
+      setTimeout(() => {
+        waveInfo.classList.remove("slide-up");
+        waveInfo.classList.add("slide-down");
+        sleepingWave = setTimeout(() => {
+          waveInfo.classList.remove("slide-down");
+          waveInfo.classList.add("slide-up");
+        }, 4000);
+      }, 100);
+    }
+  };
+
   // Basic finite state machine
   const IDLE_STATE: State = {
     name: "idle",
     enter() {
-      const screens = proxy.get<LoadedUIElements>("screens");
-      uiContainer.appendChild(screens.start);
-      startScreenLogic(proxy);
+      const screens = proxy.getComponent<LoadedUIElements>("screens");
+      if (!screens) return;
+      uiContainer.appendChild(screens.idle);
+      idleScreenLogic(proxy);
     },
     exit() {
-      const screens = proxy.get<LoadedUIElements>("screens");
-      uiContainer.removeChild(screens.start);
+      const screens = proxy.getComponent<LoadedUIElements>("screens");
+      if (!screens) return;
+      uiContainer.removeChild(screens.idle);
     },
   };
   const OPTIONS_STATE: State = {
     name: "options",
     enter() {
-      const screens = proxy.get<LoadedUIElements>("screens");
+      const screens = proxy.getComponent<LoadedUIElements>("screens");
+      if (!screens) return;
       uiContainer.appendChild(screens.options);
       optionsScreenLogic(proxy);
     },
     exit() {
-      const screens = proxy.get<LoadedUIElements>("screens");
+      const screens = proxy.getComponent<LoadedUIElements>("screens");
+      if (!screens) return;
       uiContainer.removeChild(screens.options);
     },
   };
   const PAUSED_STATE: State = {
     name: "paused",
     enter() {
-      const screens = proxy.get<LoadedUIElements>("screens");
+      const screens = proxy.getComponent<LoadedUIElements>("screens");
+      if (!screens) return;
       uiContainer.appendChild(screens.pause);
-      Input.off("down", onPause);
-      setTimeout(() => {
-        Input.on("down", onPause);
-      }, 100);
     },
     exit() {
-      const screens = proxy.get<LoadedUIElements>("screens");
+      const screens = proxy.getComponent<LoadedUIElements>("screens");
+      if (!screens) return;
       uiContainer.removeChild(screens.pause);
-      Input.off("down", onPause);
     },
   };
-  const START_STATE: State = {
-    name: "start",
-    enter(_prev) {
-      if (_prev && _prev.name === "idle") {
-        const info = proxy.get<LoadedUIElements>("screens").wave_info;
-        if (!uiContainer.contains(info)) {
-          uiContainer.appendChild(info);
-          info.dispatchEvent(showWaveEvent);
-        }
+  const PLAYING_STATE: State = {
+    name: "playing",
+    enter() {
+      const screens = proxy.getComponent<LoadedUIElements>("screens");
+      if (!screens) return;
+      uiContainer.appendChild(screens.playing);
+      playingScreenLogic(proxy, world);
 
-        // Enter/restart game
-        state.camera.position.set(0, 50, 20);
-        state.camera.lookAt(zeroVector);
-        Player(world);
-      }
+      screens.playing.addEventListener("show-wave", onShowWaveEvent);
 
-      Input.off("down", onPause);
-      setTimeout(() => {
-        Input.on("down", onPause);
-      }, 100);
+      Input.keyboard.on("down", onPause);
+
+      screens.playing.dispatchEvent(showWaveEvent);
     },
-    exit(_next) {
-      Input.off("down", onPause);
+    exit() {
+      const screens = proxy.getComponent<LoadedUIElements>("screens");
+      if (!screens) return;
+      uiContainer.removeChild(screens.playing);
+      screens.playing.removeEventListener("show-wave", onShowWaveEvent);
     },
   };
   const FINISHED_STATE: State = {
     name: "finish",
     enter() {
-      const screens = proxy.get<LoadedUIElements>("screens");
+      const screens = proxy.getComponent<LoadedUIElements>("screens");
+      if (!screens) return;
+      Input.keyboard.off("down", onPause);
       uiContainer.appendChild(screens.finish);
+      finishScreenLogic(proxy);
     },
     exit() {
-      const screens = proxy.get<LoadedUIElements>("screens");
+      const screens = proxy.getComponent<LoadedUIElements>("screens");
+      if (!screens) return;
       uiContainer.removeChild(screens.finish);
     },
   };
@@ -194,12 +214,12 @@ export function Engine(state: GLState, world: World): Entity {
   stateMachine.register(IDLE_STATE);
   stateMachine.register(OPTIONS_STATE);
   stateMachine.register(PAUSED_STATE);
-  stateMachine.register(START_STATE);
+  stateMachine.register(PLAYING_STATE);
   stateMachine.register(FINISHED_STATE);
 
-  proxy.add("isEngine", true);
-  proxy.add("gl", state);
-  proxy.add("state", stateMachine);
+  proxy.addComponent("isEngine", true);
+  proxy.addComponent("gl", state);
+  proxy.addComponent("state", stateMachine);
 
   return proxy;
 }

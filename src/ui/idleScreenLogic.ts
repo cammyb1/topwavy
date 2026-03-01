@@ -2,7 +2,7 @@ import type { Entity } from "@jael-ecs/core";
 import { FiniteState } from "../helpers/state";
 
 export default function (engine: Entity) {
-  const machine = engine.get<FiniteState>("state");
+  const machine = engine.getComponent<FiniteState>("state");
 
   if (!machine || !engine) return;
 
@@ -13,7 +13,7 @@ export default function (engine: Entity) {
 
   if (playButton) {
     playButton.onclick = () => {
-      machine.setActiveState("start");
+      machine.setActiveState("playing");
     };
   }
 

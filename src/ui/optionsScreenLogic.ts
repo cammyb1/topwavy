@@ -3,7 +3,7 @@ import { game } from "../store";
 import type { FiniteState } from "../helpers/state";
 
 export default function (engine: Entity) {
-  const machine = engine.get<FiniteState>("state");
+  const machine = engine.getComponent<FiniteState>("state");
 
   if (!machine || !engine) return;
 

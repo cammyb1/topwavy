@@ -9,12 +9,6 @@ import RapierEngine from "./helpers/rapier";
 import { Vector3, type AnimationAction, type Vector2Like } from "three";
 import { FiniteState, type AnimationState } from "./helpers/state";
 
-export const PRIORITY_LIST = Object.freeze({
-  RENDER: 0,
-  PHYSICS: 1,
-  REST: 2,
-});
-
 export type ReturnedPhy = {
   rb: RigidBody & { onCollisionStart: Function; onCollisionEnd: Function };
   col: Collider;
@@ -63,13 +57,12 @@ export function addState(
 }
 
 export function isGameActive(engine: Entity): boolean {
-  if (!engine.get("isEngine")) return false;
-  const machine = engine.get<FiniteState>("state");
+  if (!engine.getComponent("isEngine")) return false;
+  const machine = engine.getComponent<FiniteState>("state");
 
-  return Boolean(
-    machine.active?.name &&
-    !["idle", "paused", "finish"].includes(machine.active?.name),
-  );
+  if (!machine) return false;
+
+  return machine.active?.name === "playing";
 }
 
 export function createDynamicBox(size: Vector2Like): ReturnedPhy {
@@ -123,8 +116,8 @@ export function destroyEntityWithCollider(
   if (world.exist(entityId)) {
     const proxy = world.getEntity(entityId);
     if (proxy) {
-      const rb = proxy.get<RigidBody>("rigidbody");
-      const col = proxy.get<Collider>("collider");
+      const rb = proxy.getComponent<RigidBody>("rigidbody");
+      const col = proxy.getComponent<Collider>("collider");
       if (rb) {
         RapierEngine.world.removeRigidBody(rb);
       }

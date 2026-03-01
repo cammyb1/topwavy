@@ -9,7 +9,7 @@ const bundleSize = new Vector2(1, 1);
 export default function ArrowBundle(world: World, startPos: Vector3): Entity {
   const prefab = world.getPrefab("bundle");
   const engine = world.include("isEngine").entities[0];
-  const assets = engine.get<LoadedAssets>("assets");
+  const assets = engine.getComponent<LoadedAssets>("assets") as LoadedAssets;
 
   if (!prefab) {
     const mesh = assets.loaded_models.arrow_bundle.scene;
@@ -33,7 +33,7 @@ export default function ArrowBundle(world: World, startPos: Vector3): Entity {
 
   const bundleIf = world.instantiate("bundle") as number;
   const bundleProxy = world.getEntity(bundleIf) as Entity;
-  const transform = bundleProxy.get<Group>("transform");
+  const transform = bundleProxy.getComponent<Group>("transform");
   const phyInfo = createStaticBox(bundleSize);
 
   phyInfo.rb.setTranslation(startPos, true);
@@ -41,10 +41,10 @@ export default function ArrowBundle(world: World, startPos: Vector3): Entity {
   phyInfo.col.setSensor(true);
   phyInfo.col.setActiveCollisionTypes(ActiveCollisionTypes.ALL);
   phyInfo.col.setActiveEvents(ActiveEvents.COLLISION_EVENTS);
-  transform.position.copy(startPos);
+  transform?.position.copy(startPos);
 
-  bundleProxy.add("rigidbody", phyInfo.rb);
-  bundleProxy.add("collider", phyInfo.col);
+  bundleProxy.addComponent("rigidbody", phyInfo.rb);
+  bundleProxy.addComponent("collider", phyInfo.col);
 
   return bundleProxy as Entity;
 }

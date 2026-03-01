@@ -16,7 +16,7 @@ export default function Enemy(world: World, startingPos?: Vector3): Entity {
   const player = world.include("isPlayer").entities[0];
   const engine = world.include("isEngine").entities[0];
   const prefab = world.getPrefab("enemy");
-  const assets = engine.get<LoadedAssets>("assets");
+  const assets = engine.getComponent<LoadedAssets>("assets") as LoadedAssets;
 
   const model = assets.loaded_models.skeleton_minion;
   const blade = assets.loaded_models.skeleton_blade;
@@ -54,7 +54,7 @@ export default function Enemy(world: World, startingPos?: Vector3): Entity {
   const enemyProxy = world.getEntity(enemyId) as Entity;
   const phyInfo = createDynamicBox(enemySize);
 
-  const transform = enemyProxy.get<Group>("transform");
+  const transform = enemyProxy.getComponent<Group>("transform") as Group;
 
   phyInfo.rb.setTranslation(transform.position, true);
   phyInfo.rb.lockRotations(true, true);
@@ -96,11 +96,11 @@ export default function Enemy(world: World, startingPos?: Vector3): Entity {
 
   phyInfo.rb.enableCcd(true);
 
-  enemyProxy.add("target", player);
-  enemyProxy.add("rigidbody", phyInfo.rb);
-  enemyProxy.add("collider", phyInfo.col);
-  enemyProxy.add("mixer", mixer);
-  enemyProxy.add("machine", machine);
+  enemyProxy.addComponent("target", player);
+  enemyProxy.addComponent("rigidbody", phyInfo.rb);
+  enemyProxy.addComponent("collider", phyInfo.col);
+  enemyProxy.addComponent("mixer", mixer);
+  enemyProxy.addComponent("machine", machine);
 
   return world.getEntity(enemyId) as Entity;
 }

@@ -1,5 +1,5 @@
 import type { World, Entity } from "@jael-ecs/core";
-import { Mesh, Vector3 } from "three";
+import { Mesh, Object3D, Vector3 } from "three";
 import RapierEngine from "../helpers/rapier";
 import * as RAPIER from "@dimforge/rapier3d";
 import type { LoadedAssets } from "../game";
@@ -7,13 +7,13 @@ import type { LoadedAssets } from "../game";
 export default function Arrow(world: World, startPos: Vector3): Entity {
   const prefab = world.getPrefab("arrow");
   const engine = world.include("isEngine").entities[0];
-  const assets = engine.get<LoadedAssets>("assets");
+  const assets = engine.getComponent<LoadedAssets>("assets") as LoadedAssets;
 
   if (!prefab) {
     const mesh = assets.loaded_models.arrow.scene;
 
     // Physics world stuff
-    mesh.traverse((node) => {
+    mesh.traverse((node: Object3D) => {
       if (node.isObject3D) {
         node.castShadow = true;
         node.receiveShadow = true;
@@ -48,7 +48,7 @@ export default function Arrow(world: World, startPos: Vector3): Entity {
 
   kinematicRigidBody.setTranslation(startPos, true);
   collider.setTranslation(startPos);
-  arrowProxy.get<Mesh>("transform").position.copy(startPos);
+  arrowProxy.getComponent<Mesh>("transform")?.position.copy(startPos);
 
   kinematicRigidBody.lockRotations(true, true);
   kinematicRigidBody.setLinearDamping(0.25);
@@ -59,8 +59,8 @@ export default function Arrow(world: World, startPos: Vector3): Entity {
   collider.setRadius(0.25);
   collider.setSensor(true);
 
-  arrowProxy.add("rigidbody", kinematicRigidBody);
-  arrowProxy.add("collider", collider);
+  arrowProxy.addComponent("rigidbody", kinematicRigidBody);
+  arrowProxy.addComponent("collider", collider);
 
   return arrowProxy as Entity;
 }
