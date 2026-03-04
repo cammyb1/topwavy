@@ -1,5 +1,5 @@
 # TopWavy
-
+![topwavy](https://github.com/user-attachments/assets/060cee3f-6a17-4323-96a4-b9700c7b3eef)
 **TopWavy** is a demonstration project that explores the capabilities of the **Jael** entity system as the core engine for a game. This repository serves as a proof of concept to evaluate how Jael can integrate with external rendering and physics libraries.
 
 ## Technologies Used
