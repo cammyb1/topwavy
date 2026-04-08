@@ -20,6 +20,7 @@ export class FiniteState<
 > extends EventRegistry<FiniteStateEvents> {
   states: S[];
   active: S | undefined;
+  isFiniteState: boolean = true;
 
   constructor() {
     super();

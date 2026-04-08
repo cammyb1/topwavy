@@ -6,13 +6,27 @@ import {
 } from "@dimforge/rapier3d";
 import type { Entity, World } from "@jael-ecs/core";
 import RapierEngine from "./helpers/rapier";
-import { Vector3, type AnimationAction, type Vector2Like } from "three";
+import {
+  Mesh,
+  Vector3,
+  Object3D,
+  Group,
+  type AnimationAction,
+  type Vector2Like,
+} from "three";
 import { FiniteState, type AnimationState } from "./helpers/state";
+import { Time } from "@jael-ecs/core";
 
 export type ReturnedPhy = {
   rb: RigidBody & { onCollisionStart: Function; onCollisionEnd: Function };
   col: Collider;
 };
+
+export const meshMap: Map<string, Mesh | Object3D | Group> = new Map();
+
+const timeInstance = new Time({ autostart: true });
+
+export { timeInstance as Time };
 
 export type Duplet = Vector2Like | [number, number];
 

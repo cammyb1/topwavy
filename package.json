@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@dimforge/rapier3d": "0.19.3",
-    "@jael-ecs/core": "1.4.0",
+    "@jael-ecs/core": "1.5.0",
     "@types/three": "0.182.0",
     "three": "0.182.0",
     "vite-plugin-top-level-await": "1.6.0",

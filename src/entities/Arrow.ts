@@ -1,38 +1,43 @@
 import type { World, Entity } from "@jael-ecs/core";
-import { Mesh, Object3D, Vector3 } from "three";
+import { Object3D, Vector3 } from "three";
 import RapierEngine from "../helpers/rapier";
 import * as RAPIER from "@dimforge/rapier3d";
+import { meshMap } from "../utils";
 import type { LoadedAssets } from "../game";
+import { SkeletonUtils } from "three/examples/jsm/Addons.js";
+import { type ArrowSchema, type TransformComponent } from "../components";
 
 export default function Arrow(world: World, startPos: Vector3): Entity {
-  const prefab = world.getPrefab("arrow");
   const engine = world.include("isEngine").entities[0];
   const assets = engine.getComponent<LoadedAssets>("assets") as LoadedAssets;
 
-  if (!prefab) {
-    const mesh = assets.loaded_models.arrow.scene;
+  let mesh = meshMap.get("arrow");
 
-    // Physics world stuff
+  if (!mesh) {
+    mesh = assets.loaded_models.arrow.scene;
+
     mesh.traverse((node: Object3D) => {
       if (node.isObject3D) {
         node.castShadow = true;
         node.receiveShadow = true;
       }
     });
-    mesh.position.copy(startPos);
 
-    // Components
-    const arrowSchema = {
-      transform: mesh,
-      isBullet: true,
-      lifetime: { current: 1, decreaseSpeed: 1.5 },
-      velocity: new Vector3(),
-      damage: 10,
-    };
-    world.createPrefab("arrow", arrowSchema);
+    meshMap.set("arrow", mesh);
   }
 
-  const arrowId = world.instantiate("arrow") as number;
+  // Components
+  const arrowSchema = {
+    transform: SkeletonUtils.clone(mesh),
+    isBullet: true,
+    lifetime: { current: 1, decreaseSpeed: 1.5 },
+    velocity: new Vector3(),
+    damage: 10,
+  };
+
+  arrowSchema.transform.position.copy(startPos);
+
+  const arrowId = world.createWith<ArrowSchema>(arrowSchema);
   const arrowProxy = world.getEntity(arrowId) as Entity;
 
   const kinematicDesc = RapierEngine.rigidbody
@@ -48,7 +53,9 @@ export default function Arrow(world: World, startPos: Vector3): Entity {
 
   kinematicRigidBody.setTranslation(startPos, true);
   collider.setTranslation(startPos);
-  arrowProxy.getComponent<Mesh>("transform")?.position.copy(startPos);
+  arrowProxy
+    .getComponent<TransformComponent>("transform")
+    ?.position.copy(startPos);
 
   kinematicRigidBody.lockRotations(true, true);
   kinematicRigidBody.setLinearDamping(0.25);

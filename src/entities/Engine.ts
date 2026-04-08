@@ -2,6 +2,7 @@ import type { GLState } from "../mount3";
 import {
   AmbientLight,
   DirectionalLight,
+  Group,
   Mesh,
   PlaneGeometry,
   ShadowMaterial,
@@ -67,6 +68,8 @@ export function Engine(state: GLState, world: World): Entity {
   // Lightset
   const ambient = new AmbientLight("white", 1);
   const directional = new DirectionalLight("white", 1);
+  const lightGroup = new Group();
+  lightGroup.name = "LightGroup";
 
   directional.position.set(10, 20, 2);
   directional.castShadow = true;
@@ -79,14 +82,17 @@ export function Engine(state: GLState, world: World): Entity {
   directional.shadow.camera.far = 400;
   directional.shadow.bias = 0.001;
 
+  lightGroup.add(ambient);
+  lightGroup.add(directional);
+  lightGroup.add(directional.target);
+  lightGroup.add(ground);
+
   // Set default scene
 
   const zeroVector = new Vector3(0, 0, 0);
   state.camera.position.set(0, 50, 20);
   state.camera.lookAt(zeroVector);
-  state.scene.add(ground);
-  state.scene.add(ambient);
-  state.scene.add(directional);
+  state.scene.add(lightGroup);
   state.scene.add(RapierEngine.debugMesh);
 
   const uiContainer: HTMLElement = document.getElementById("ui") as HTMLElement;

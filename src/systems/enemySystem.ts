@@ -1,6 +1,9 @@
 import { RigidBody } from "@dimforge/rapier3d";
-import { type Entity, Time, type World } from "@jael-ecs/core";
+import { type Entity, type World } from "@jael-ecs/core";
 import { Vector3 } from "three";
+import { Time } from "../utils";
+import { type TransformComponent } from "../components";
+import { FiniteState } from "../helpers/state";
 
 export default function EnemyAI(world: World) {
   const targetDir = new Vector3();
@@ -11,13 +14,13 @@ export default function EnemyAI(world: World) {
 
   return () => {
     query.entities.forEach((enemy: Entity) => {
-      const mesh = enemy.getComponent("transform");
-      const velocity = enemy.getComponent("velocity");
-      const machine = enemy.getComponent("machine");
+      const mesh = enemy.getComponent<TransformComponent>("transform")!;
+      const velocity = enemy.getComponent<Vector3>("velocity")!;
+      const machine = enemy.getComponent<FiniteState>("machine")!;
       const rb = enemy.getComponent<RigidBody>("rigidbody");
       const targetMesh = enemy
         .getComponent<Entity>("target")
-        ?.getComponent("transform");
+        ?.getComponent<TransformComponent>("transform");
 
       if (targetMesh && rb) {
         if (targetMesh.position.distanceTo(mesh.position) < 20) {

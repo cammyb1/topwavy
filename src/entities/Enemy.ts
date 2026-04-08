@@ -7,25 +7,29 @@ import {
   Vector2,
   Vector3,
 } from "three";
-import { addState, createDynamicBox } from "../utils";
+import { addState, createDynamicBox, meshMap } from "../utils";
 import type { LoadedAssets } from "../game";
 import { type AnimationState, FiniteState } from "../helpers/state";
+import { SkeletonUtils } from "three/examples/jsm/Addons.js";
+import { type EnemySchema, type TransformComponent } from "../components";
+
 const enemySize = new Vector2(0.5, 0.5);
 
 export default function Enemy(world: World, startingPos?: Vector3): Entity {
   const player = world.include("isPlayer").entities[0];
   const engine = world.include("isEngine").entities[0];
-  const prefab = world.getPrefab("enemy");
   const assets = engine.getComponent<LoadedAssets>("assets") as LoadedAssets;
-
-  const model = assets.loaded_models.skeleton_minion;
-  const blade = assets.loaded_models.skeleton_blade;
 
   const generalAnims = assets.loaded_animations.general;
   const basicAnims = assets.loaded_animations.basic;
   const meleeAnims = assets.loaded_animations.melee;
 
-  if (!prefab) {
+  let mesh = meshMap.get("enemy");
+
+  if (!mesh) {
+    const model = assets.loaded_models.skeleton_minion;
+    const blade = assets.loaded_models.skeleton_blade;
+
     model.scene.getObjectByName("handslotr")?.add(blade.scene);
 
     model.scene.traverse((node) => {
@@ -35,26 +39,28 @@ export default function Enemy(world: World, startingPos?: Vector3): Entity {
       }
     });
 
-    const enemySchema = {
-      transform: model.scene,
-      velocity: new Vector3(),
-      health: { current: 100 },
-      damage: 6,
-      isEnemy: true,
-    };
-
-    if (startingPos) {
-      enemySchema.transform.position.copy(startingPos);
-    }
-
-    world.createPrefab("enemy", enemySchema);
+    mesh = model.scene;
   }
 
-  const enemyId = world.instantiate("enemy") as number;
+  const enemySchema = {
+    transform: SkeletonUtils.clone(mesh),
+    velocity: new Vector3(),
+    health: { current: 100 },
+    damage: 6,
+    isEnemy: true,
+  };
+
+  if (startingPos) {
+    enemySchema.transform.position.copy(startingPos);
+  }
+
+  const enemyId = world.createWith<EnemySchema>(enemySchema);
   const enemyProxy = world.getEntity(enemyId) as Entity;
   const phyInfo = createDynamicBox(enemySize);
 
-  const transform = enemyProxy.getComponent<Group>("transform") as Group;
+  const transform = enemyProxy.getComponent<TransformComponent>(
+    "transform",
+  ) as Group;
 
   phyInfo.rb.setTranslation(transform.position, true);
   phyInfo.rb.lockRotations(true, true);

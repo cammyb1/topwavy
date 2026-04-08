@@ -1,4 +1,4 @@
-import { Time, World } from "@jael-ecs/core";
+import { World } from "@jael-ecs/core";
 import type { GLState } from "./mount3";
 import RapierEngine from "./helpers/rapier";
 import { Engine } from "./entities/Engine";
@@ -7,15 +7,11 @@ import EnemyAI from "./systems/enemySystem";
 import PlayerController from "./systems/playerController";
 import WaveSystem from "./systems/waveSystem";
 import { FiniteState } from "./helpers/state";
-import {
-  GLTFLoader,
-  SkeletonUtils,
-  type GLTF,
-} from "three/examples/jsm/Addons.js";
+import { GLTFLoader, type GLTF } from "three/examples/jsm/Addons.js";
 import { AnimationClip, Color, DefaultLoadingManager } from "three";
 import FileLoader from "./helpers/FileLoader";
 import CollisionSystem from "./systems/collisionSystem";
-import { isGameActive } from "./utils";
+import { isGameActive, Time } from "./utils";
 import CameraSystem from "./systems/cameraSystem";
 import { Input } from "@jael-ecs/core";
 
@@ -31,7 +27,10 @@ const getPublicPath = (folder: string, file: string) => {
 
 export type LoadedModels = { [k: string]: GLTF };
 export type LoadedAnimations = { [k: string]: AnimationClip[] };
-export type LoadedUIElements = { [k: string]: HTMLDivElement };
+export type LoadedUIElements = {
+  [k: string]: HTMLDivElement;
+};
+
 export type LoadedAssets = {
   loaded_models: LoadedModels;
   loaded_animations: LoadedAnimations;
@@ -41,7 +40,7 @@ const loadUI = async (path: string) =>
   await fileLoader
     .setResponseType("document")
     .setMimeType("text/html")
-    .loadAsync(getPublicPath("ui", `${path}.html`));
+    .loadAsync(getPublicPath("ui", path));
 
 const loadModel = async (model: string) =>
   await gltfLoader.loadAsync(getPublicPath("models", model));
@@ -85,11 +84,11 @@ async function preloadAssets(): Promise<LoadedAssets> {
 
 async function preloadUI(): Promise<LoadedUIElements> {
   const screens: { [k: string]: string } = {
-    idle: "IdleScreen",
-    playing: "PlayingScreen",
-    pause: "PauseScreen",
-    finish: "FinishScreen",
-    options: "OptionsScreen",
+    idle: "IdleScreen.html",
+    playing: "PlayingScreen.html",
+    pause: "PauseScreen.html",
+    finish: "FinishScreen.html",
+    options: "OptionsScreen.html",
   };
   let loaded_screens: LoadedUIElements = {};
 
@@ -119,15 +118,6 @@ export function mountExperience(state: GLState) {
 
   const world = new World();
 
-  world.prefabManager.addDetector((value: any) => {
-    if (value.isObject3D && value.getObjectByProperty("isSkinnedMesh", true))
-      return "skeletal";
-    if (value.clone !== undefined) return "clonable";
-    return null;
-  });
-  world.prefabManager.addCloner("clonable", (v) => v.clone());
-  world.prefabManager.addCloner("skeletal", (v) => SkeletonUtils.clone(v));
-
   let systems: Function[] = [];
   const engine = Engine(state, world);
   const uiContainer: HTMLElement = document.getElementById("ui") as HTMLElement;
@@ -143,6 +133,7 @@ export function mountExperience(state: GLState) {
 
   promise.then(([assets, screens]: [LoadedAssets, LoadedUIElements]) => {
     uiContainer.removeChild(loader);
+
     engine.addComponent("assets", assets);
     engine.addComponent("screens", screens);
     const machine = engine.getComponent<FiniteState>("state");

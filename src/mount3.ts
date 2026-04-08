@@ -1,4 +1,4 @@
-import { Time } from "@jael-ecs/core";
+import { Time } from "./utils";
 import { WebGLRenderer, Scene, PerspectiveCamera } from "three";
 
 export interface GLState {

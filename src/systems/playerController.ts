@@ -1,11 +1,12 @@
-import { Time, type Entity, type World, Input } from "@jael-ecs/core";
+import { type Entity, type World, Input } from "@jael-ecs/core";
 import { Group, Plane, Raycaster, Vector2, Vector3 } from "three";
 import type { GLState } from "../mount3";
 import Arrow from "../entities/Arrow";
 import { FiniteState } from "../helpers/state";
 import { RigidBody } from "@dimforge/rapier3d";
-import { destroyEntityWithCollider, isGameActive } from "../utils";
+import { destroyEntityWithCollider, isGameActive, Time } from "../utils";
 import type { RBUserdataEvents } from "./collisionSystem";
+import type { HealthComponent } from "../components";
 
 const zeroVector = new Vector3();
 const lookAtVector = new Vector3();
@@ -58,8 +59,10 @@ export default function PlayerController(world: World) {
 
   function damagePlayer(dmg: number) {
     if (!playerQuery.entities[0]) return;
-    const health = playerQuery.entities[0].getComponent("health");
-    const machine = playerQuery.entities[0].getComponent("machine");
+    const health =
+      playerQuery.entities[0].getComponent<HealthComponent>("health")!;
+    const machine =
+      playerQuery.entities[0].getComponent<FiniteState>("machine")!;
     health.current -= dmg;
     machine.setActiveState("hit");
     updatePlayerHTML();
@@ -91,7 +94,7 @@ export default function PlayerController(world: World) {
         onCollisionStart: (e: Entity) => {
           if (e.getComponent("isEnemy")) {
             const damage = arrowE.getComponent<number>("damage") || 0;
-            e.getComponent("health").current -= damage;
+            e.getComponent<HealthComponent>("health")!.current -= damage;
             destroyEntityWithCollider(arrowE.id, world);
           }
         },
@@ -104,11 +107,12 @@ export default function PlayerController(world: World) {
   }
 
   function updatePlayerHTML() {
-    const health = playerQuery.entities[0].getComponent("health");
+    const health =
+      playerQuery.entities[0].getComponent<HealthComponent>("health")!;
     const hp_container = document.getElementById("hp-value");
 
     if (hp_container) {
-      const percentage = (health.current / health.max) * 100;
+      const percentage = (health.current / (health.max ?? 1)) * 100;
       hp_container.style.width = `${percentage}%`;
       hp_container.innerHTML = `${health.current}`;
     }
@@ -129,7 +133,7 @@ export default function PlayerController(world: World) {
 
   playerQuery.on("added", (id: number) => {
     const player = world.getEntity(id) as Entity;
-    const rb = player.getComponent("rigidbody");
+    const rb = player.getComponent<RigidBody>("rigidbody");
 
     if (!rb) return;
 

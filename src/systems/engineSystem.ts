@@ -1,10 +1,15 @@
-import { type World, type Entity, Time } from "@jael-ecs/core";
+import { type World, type Entity } from "@jael-ecs/core";
 import type { GLState } from "../mount3";
-import { AnimationMixer, type Object3D, type Group } from "three";
-import { destroyEntityWithCollider, randomIn3DCircle } from "../utils";
+import { AnimationMixer, type Object3D, type Group, Vector3 } from "three";
+import { destroyEntityWithCollider, randomIn3DCircle, Time } from "../utils";
 import { FiniteState, type State } from "../helpers/state";
 import { Collider, RigidBody } from "@dimforge/rapier3d";
 import ArrowBundle from "../entities/ArrowBundle";
+import type {
+  HealthComponent,
+  LifetimeComponent,
+  TransformComponent,
+} from "../components";
 
 export default function GameEngine(world: World) {
   const renderables = world.include("transform");
@@ -126,7 +131,7 @@ export default function GameEngine(world: World) {
 
     // Lifetime entities
     lifeTimers.entities.forEach((entity: Entity) => {
-      const lifetime = entity.getComponent("lifetime");
+      const lifetime = entity.getComponent<LifetimeComponent>("lifetime")!;
       lifetime.current -= lifetime.decreaseSpeed * Time.delta;
       if (lifetime.current < 0) {
         destroyEntityWithCollider(entity.id, world);
@@ -135,7 +140,7 @@ export default function GameEngine(world: World) {
 
     // Health
     healthEs.entities.forEach((entity: Entity) => {
-      const health = entity.getComponent("health");
+      const health = entity.getComponent<HealthComponent>("health")!;
       if (health.current <= 0) {
         destroyEntityWithCollider(entity.id, world);
       }
@@ -150,12 +155,12 @@ export default function GameEngine(world: World) {
 
     // Movement sync with mesh and physics
     movables.entities.forEach((entity: Entity) => {
-      const transform = entity.getComponent("transform");
-      const rb = entity.getComponent<RigidBody>("rigidbody");
-      const velocity = entity.getComponent("velocity");
+      const transform = entity.getComponent<TransformComponent>("transform")!;
+      const rb = entity.getComponent<RigidBody>("rigidbody")!;
+      const velocity = entity.getComponent<Vector3>("velocity")!;
       rb?.setRotation(transform.quaternion, true);
       rb?.setLinvel(velocity, true);
-      transform.position.copy(rb?.translation());
+      transform.position.copy(rb.translation());
     });
   };
 }

@@ -1,6 +1,8 @@
-import { Time, World } from "@jael-ecs/core";
-import { Frustum, Matrix4, Vector3, type Group } from "three";
+import { World } from "@jael-ecs/core";
+import { Frustum, Matrix4, Vector3 } from "three";
 import { type GLState } from "../mount3";
+import { Time } from "../utils";
+import type { TransformComponent } from "../components";
 
 export default function CameraSystem(world: World) {
   const playerQuery = world.include("isPlayer");
@@ -20,9 +22,15 @@ export default function CameraSystem(world: World) {
 
     const gl = engine.getComponent<GLState>("gl");
     const player = playerQuery.entities[0];
-    const transform = player.getComponent<Group>("transform");
+    const transform = player.getComponent<TransformComponent>("transform");
 
     if (!gl || !transform) return;
+
+    const lightGroup = gl.scene.getObjectByName("LightGroup");
+
+    if (lightGroup) {
+      lightGroup.position.copy(transform.position);
+    }
 
     transform.getWorldDirection(playerDirection);
     playerOffset

@@ -6,10 +6,12 @@ import {
   Vector2,
   AnimationClip,
 } from "three";
-import { addState, createDynamicBox } from "../utils";
+import { addState, createDynamicBox, meshMap } from "../utils";
 import { type LoadedAssets } from "../game";
 import { FiniteState, type AnimationState } from "../helpers/state";
 import { Input, World, type Entity } from "@jael-ecs/core";
+import { SkeletonUtils } from "three/examples/jsm/Addons.js";
+import { type PlayerSchema, type TransformComponent } from "../components";
 
 export default function Player(world: World): Entity {
   const engine = world.include("isEngine").entities[0];
@@ -20,34 +22,37 @@ export default function Player(world: World): Entity {
   const generalAnims = assets.loaded_animations.general;
   const basicAnims = assets.loaded_animations.basic;
   const rangedAnims = assets.loaded_animations.ranged;
-  const prefab = world.getPrefab("player");
+  let mesh = meshMap.get("player");
 
-  if (!prefab) {
-    model.scene.getObjectByName("handslotl")?.add(bow.scene);
+  if (!mesh) {
+    mesh = model.scene;
+    mesh.getObjectByName("handslotl")?.add(bow.scene);
     bow.scene.rotateY(-Math.PI);
     bow.scene.rotateX(-Math.PI);
 
-    model.scene.traverse((node) => {
+    mesh.traverse((node) => {
       if (node.isObject3D) {
         node.castShadow = true;
         node.receiveShadow = true;
       }
     });
 
-    const playerSchema = {
-      transform: model.scene,
-      velocity: new Vector3(),
-      health: { current: 100, max: 100 },
-      isPlayer: true,
-    };
-
-    world.createPrefab("player", playerSchema);
+    meshMap.set("player", mesh);
   }
 
-  const playerId = world.instantiate("player") as number;
+  const playerSchema = {
+    transform: SkeletonUtils.clone(mesh),
+    velocity: new Vector3(),
+    health: { current: 100, max: 100 },
+    isPlayer: true,
+  };
+
+  const playerId = world.createWith<PlayerSchema>(playerSchema);
   const player: Entity = world.getEntity(playerId) as Entity;
   const phyInfo = createDynamicBox(new Vector2(0.5, 0.5));
-  const transform: Group = player.getComponent<Group>("transform") as Group;
+  const transform: Group = player.getComponent<TransformComponent>(
+    "transform",
+  ) as Group;
   transform.position.set(0, 0, 0);
   phyInfo.rb.setTranslation(transform.position, true);
   phyInfo.rb.lockRotations(true, true);
