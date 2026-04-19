@@ -6,7 +6,7 @@
 
 | Category | Technology |
 |----------|------------|
-| Entity System | [@jael-ecs/core](https://www.npmjs.com/package/@jael-ecs/core) |
+| Entity System | [@jael-ecs/core](https://github.com/cammyb1/jael) |
 | 3D Rendering | [Three.js](https://threejs.org/) |
 | Physics | [@dimforge/rapier3d](https://rapier.rs/) |
 | Global State | [Zustand](https://github.com/pmndrs/zustand) |
