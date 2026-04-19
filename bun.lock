@@ -6,9 +6,9 @@
       "name": "jael-topdown",
       "dependencies": {
         "@dimforge/rapier3d": "0.19.3",
-        "@jael-ecs/core": "1.5.4",
+        "@jael-ecs/core": "1.5.5",
         "@types/three": "0.182.0",
-        "three": "0.182.0",
+        "three": "0.184.0",
         "vite-plugin-top-level-await": "1.6.0",
         "vite-plugin-wasm": "3.5.0",
       },
@@ -76,7 +76,7 @@
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.27.2", "", { "os": "win32", "cpu": "x64" }, "sha512-sRdU18mcKf7F+YgheI/zGf5alZatMUTKj/jNS6l744f9u3WFu4v7twcUI9vu4mknF4Y9aDlblIie0IM+5xxaqQ=="],
 
-    "@jael-ecs/core": ["@jael-ecs/core@1.5.4", "", {}, "sha512-9O9R7Lq/TInNsGgATgrooKbuyb5W05IMCX9hTBVAap9oHdKG/P+HpR8B4LtqZa12I1KdCwKbSKF1rlXFNWT0LQ=="],
+    "@jael-ecs/core": ["@jael-ecs/core@1.5.5", "", {}, "sha512-EWfYiXp8pKJnt3QsCYsqUOHB3ZjyeoFJScslkE7JT1S3KHHtaG8vyQyneszKySf3xhuGU5rbiQvP1Bzh36tEZw=="],
 
     "@rollup/plugin-virtual": ["@rollup/plugin-virtual@3.0.2", "", { "peerDependencies": { "rollup": "^1.20.0||^2.0.0||^3.0.0||^4.0.0" }, "optionalPeers": ["rollup"] }, "sha512-10monEYsBp3scM4/ND4LNH5Rxvh3e/cVeL3jWTgZ2SrQ+BmUoQcopVQvnaMcOnykb1VkxUFuDAN+0FnpTFRy2A=="],
 
@@ -192,7 +192,7 @@
 
     "source-map-js": ["source-map-js@1.2.1", "", {}, "sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA=="],
 
-    "three": ["three@0.182.0", "", {}, "sha512-GbHabT+Irv+ihI1/f5kIIsZ+Ef9Sl5A1Y7imvS5RQjWgtTPfPnZ43JmlYI7NtCRDK9zir20lQpfg8/9Yd02OvQ=="],
+    "three": ["three@0.184.0", "", {}, "sha512-wtTRjG92pM5eUg/KuUnHsqSAlPM296brTOcLgMRqEeylYTh/CdtvKUvCyyCQTzFuStieWxvZb8mVTMvdPyUpxg=="],
 
     "tinyglobby": ["tinyglobby@0.2.15", "", { "dependencies": { "fdir": "^6.5.0", "picomatch": "^4.0.3" } }, "sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ=="],
 
